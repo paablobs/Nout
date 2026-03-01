@@ -1,0 +1,25 @@
+.mainView {
+}
+
+.mainView__gridContainer {
+  height: 100dvh;
+  display: flex;
+}
+
+.mainView__leftPanel {
+  height: 100%;
+}
+
+.mainView__middlePanel {
+  height: 100%;
+  flex: 1 1 auto;
+  scrollbar-color: rgba(255, 255, 255, 0.315) transparent;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  scrollbar-gutter: stable;
+}
+
+.mainView__rightPanel > div {
+  height: 100%;
+}

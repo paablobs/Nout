@@ -8,7 +8,7 @@ import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 
 import { ColorHighlighter } from "./ColorHighlighter/ColorHighlighter";
 import { SmilieReplacer } from "./SmilieReplacer/SmilieReplacer";
-import styles from "./TipTap.module.scss";
+import "./TipTap.css";
 
 interface TiptapProps {
   content: string;
@@ -41,7 +41,7 @@ const Tiptap = ({ content, onChange, editable = true }: TiptapProps) => {
     },
     editorProps: {
       attributes: {
-        class: styles.editor,
+        class: "editor",
       },
     },
   });

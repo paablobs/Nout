@@ -15,7 +15,7 @@ import FolderView from "./FolderView/FolderView";
 import useNotes, { type Folder } from "../../hooks/useNotes";
 
 // styles
-import styles from "./MainView.module.scss";
+import "./MainView.css";
 
 const MainView = () => {
   const [openCreateFolderDialog, setOpenCreateFolderDialog] = useState(false);
@@ -173,10 +173,10 @@ const MainView = () => {
   };
 
   return (
-    <div className={styles.mainView}>
-      <Grid container spacing={3} className={styles.mainView__gridContainer}>
+    <div className="mainView">
+      <Grid container spacing={3} className="mainView__gridContainer">
         <Grid width={300}>
-          <div className={styles.mainView__leftPanel}>
+          <div className="mainView__leftPanel">
             <Sidebar
               currentView={currentView}
               selectedFolderId={selectedFolderId}
@@ -192,7 +192,7 @@ const MainView = () => {
         {currentView !== selectedView.SCRATCHPAD && (
           <Grid
             maxWidth={400}
-            className={styles.mainView__middlePanel}
+            className="mainView__middlePanel"
             gap={1}
             padding={1}
             paddingX={0}
@@ -214,7 +214,7 @@ const MainView = () => {
           </Grid>
         )}
         {(selectedNoteId || currentView === selectedView.SCRATCHPAD) && (
-          <Grid size="grow" className={styles.mainView__rightPanel}>
+          <Grid size="grow" className="mainView__rightPanel">
             <Tiptap
               content={getEditorContent()}
               onChange={handleEditorChange}

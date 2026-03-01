@@ -19,7 +19,7 @@ import MenuItem from "@mui/material/MenuItem";
 import { alpha } from "@mui/material";
 
 import { DEFAULT_CATEGORY } from "../../hooks/useNotes";
-import styles from "./Card.module.scss";
+import "./Card.css";
 
 interface CustomCardProps {
   id: string;
@@ -132,9 +132,9 @@ const CustomCard = ({
   );
 
   return (
-    <Box className={styles.box}>
+    <Box className="box">
       <Card
-        className={styles.box__card}
+        className="box__card"
         variant="outlined"
         onClick={onSelect ? () => onSelect(id) : undefined}
         data-active={selected ? "true" : undefined}
@@ -147,10 +147,10 @@ const CustomCard = ({
         }
       >
         <CardContent>
-          <Typography variant="h5" component="div" className={styles.box__text}>
+          <Typography variant="h5" component="div" className="box__text">
             {getFirstLine(text)}
           </Typography>
-          <Typography variant="body2" className={styles.box__text}>
+          <Typography variant="body2" className="box__text">
             {category}
           </Typography>
         </CardContent>

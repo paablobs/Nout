@@ -1,0 +1,20 @@
+.box {
+  max-height: 142px;
+  height: 142px;
+}
+
+.box__card {
+  height: 100%;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.box__card[data-active="true"] {
+  transition: background-color 0.2s ease;
+}
+
+.box__text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
