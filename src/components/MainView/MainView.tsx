@@ -12,6 +12,7 @@ import DeleteFolderDialog from "./DeleteFolderDialog/DeleteFolderDialog";
 import EmptyTrashDialog from "./EmptyTrashDialog/EmptyTrashDialog";
 import Sidebar from "./Sidebar/Sidebar";
 import FolderView from "./FolderView/FolderView";
+import Auth from "../Auth/Auth";
 import useNotes, { type Folder } from "../../hooks/useNotes";
 
 // styles
@@ -162,7 +163,7 @@ const MainView = () => {
 
   const handleViewChange = (view: SelectedView) => {
     setCurrentView(view);
-    if (view !== selectedView.FOLDERS) {
+    if (view !== selectedView.FOLDERS && view !== selectedView.LOGIN) {
       selectInitialNote(view);
     }
   };
@@ -245,6 +246,10 @@ const MainView = () => {
           setOpenEmptyTrashDialog(false);
         }}
         onClose={() => setOpenEmptyTrashDialog(false)}
+      />
+      <Auth
+        isOpen={currentView === selectedView.LOGIN}
+        onClose={() => setCurrentView(selectedView.NOTES)}
       />
     </div>
   );

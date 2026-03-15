@@ -4,6 +4,7 @@ export const selectedView = {
   FAVORITES: "favorites",
   TRASH: "trash",
   FOLDERS: "folders",
+  LOGIN: "login",
 };
 
 export type SelectedView = (typeof selectedView)[keyof typeof selectedView];

@@ -19,6 +19,7 @@ import {
   CreateNewFolderOutlined as CreateNewFolderIcon,
   EditNoteOutlined as NewNoteIcon,
   CodeOutlined as CodeIcon,
+  Login as LoginIcon,
 } from "@mui/icons-material";
 import { yellow } from "@mui/material/colors";
 
@@ -68,6 +69,20 @@ const Sidebar = ({
               />
               Nout
             </ListItemText>
+            <Button
+              variant="contained"
+              color="info"
+              onClick={() => onViewChange(selectedView.LOGIN)}
+              sx={{
+                aspectRatio: "1 / 1",
+                minWidth: 0,
+                borderRadius: "50%",
+                padding: 1,
+                marginRight: 1,
+              }}
+            >
+              <LoginIcon fontSize="large" />
+            </Button>
             {currentView !== selectedView.TRASH &&
               currentView !== selectedView.SCRATCHPAD && (
                 <Button
