@@ -24,10 +24,24 @@ const Auth = ({ isOpen, onClose }: AuthProps) => {
     onClose();
   };
 
+  const cleanState = () => {
+    setEmail("");
+    setPassword("");
+  };
+
   const onLogin = async (email: string, password: string) => {
-    await createUserWithEmailAndPassword(auth, email, password);
-    // After successful login, you can close the dialog
-    onClose();
+    try {
+      await createUserWithEmailAndPassword(auth, email, password).then(
+        (userCredential) => {
+          const user = userCredential.user;
+          console.log("User logged in:", user);
+        },
+      );
+      onClose();
+      cleanState();
+    } catch (error) {
+      console.error("Error during login:", error);
+    }
   };
 
   return (
