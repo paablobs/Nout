@@ -37,14 +37,15 @@ const Auth = ({ isOpen, onClose }: AuthProps) => {
 
   const onLogin = async (email: string, password: string) => {
     try {
-      await signInWithEmailAndPassword(auth, email, password).then(
-        (userCredential) => {
+      await signInWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
           const user = userCredential.user;
           console.log("User logged in:", user);
-        },
-      );
-      onClose();
-      cleanState();
+        })
+        .finally(() => {
+          cleanState();
+          onClose();
+        });
     } catch (error) {
       console.error("Error during login:", error);
     }
@@ -52,12 +53,14 @@ const Auth = ({ isOpen, onClose }: AuthProps) => {
 
   const onRegister = async (email: string, password: string) => {
     try {
-      await createUserWithEmailAndPassword(auth, email, password).then(
-        (userCredential) => {
+      await createUserWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
           const user = userCredential.user;
           console.log("User registered:", user);
-        },
-      );
+        })
+        .catch((error) => {
+          console.error("Error during registration:", error);
+        });
       onClose();
       cleanState();
     } catch (error) {
