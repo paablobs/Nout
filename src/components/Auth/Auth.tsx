@@ -7,8 +7,12 @@ import {
   TextField,
   DialogActions,
   Button,
+  Link,
 } from "@mui/material";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+} from "firebase/auth";
 import { auth } from "../../config/firebase";
 
 interface AuthProps {
@@ -20,6 +24,8 @@ interface AuthProps {
 const Auth = ({ isOpen, onClose }: AuthProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isRegister, setIsRegister] = useState(false);
+
   const handleClose = () => {
     onClose();
   };
@@ -31,7 +37,7 @@ const Auth = ({ isOpen, onClose }: AuthProps) => {
 
   const onLogin = async (email: string, password: string) => {
     try {
-      await createUserWithEmailAndPassword(auth, email, password).then(
+      await signInWithEmailAndPassword(auth, email, password).then(
         (userCredential) => {
           const user = userCredential.user;
           console.log("User logged in:", user);
@@ -44,12 +50,29 @@ const Auth = ({ isOpen, onClose }: AuthProps) => {
     }
   };
 
+  const onRegister = async (email: string, password: string) => {
+    try {
+      await createUserWithEmailAndPassword(auth, email, password).then(
+        (userCredential) => {
+          const user = userCredential.user;
+          console.log("User registered:", user);
+        },
+      );
+      onClose();
+      cleanState();
+    } catch (error) {
+      console.error("Error during registration:", error);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onClose={handleClose}>
-      <DialogTitle>Auth</DialogTitle>
+      <DialogTitle>{isRegister ? "Register" : "Login"}</DialogTitle>
       <DialogContent>
         <DialogContentText>
-          Please enter your email and password to log in.
+          {isRegister
+            ? "Please enter your email and password to register."
+            : "Please enter your email and password to log in."}
         </DialogContentText>
         <TextField
           autoFocus
@@ -69,15 +92,42 @@ const Auth = ({ isOpen, onClose }: AuthProps) => {
           onChange={(e) => setPassword(e.target.value)}
         />
       </DialogContent>
+      {isRegister ? (
+        <Link
+          component="button"
+          underline="hover"
+          onClick={() => setIsRegister(!isRegister)}
+        >
+          Already have an account? Login
+        </Link>
+      ) : (
+        <Link
+          component="button"
+          underline="hover"
+          onClick={() => setIsRegister(!isRegister)}
+        >
+          Don't have an account? Register
+        </Link>
+      )}
       <DialogActions>
         <Button onClick={handleClose}>Cancel</Button>
-        <Button
-          onClick={() => onLogin(email, password)}
-          variant="contained"
-          color="secondary"
-        >
-          Login
-        </Button>
+        {isRegister ? (
+          <Button
+            onClick={() => onRegister(email, password)}
+            variant="contained"
+            color="secondary"
+          >
+            Register
+          </Button>
+        ) : (
+          <Button
+            onClick={() => onLogin(email, password)}
+            variant="contained"
+            color="secondary"
+          >
+            Login
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );
