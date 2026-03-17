@@ -92,30 +92,25 @@ const Auth = ({ isOpen, onClose }: AuthProps) => {
           onChange={(e) => setPassword(e.target.value)}
         />
       </DialogContent>
-      {isRegister ? (
-        <Link
-          component="button"
-          underline="hover"
-          onClick={() => setIsRegister(!isRegister)}
-        >
-          Already have an account? Login
-        </Link>
-      ) : (
-        <Link
-          component="button"
-          underline="hover"
-          onClick={() => setIsRegister(!isRegister)}
-        >
-          Don't have an account? Register
-        </Link>
-      )}
+      <Link
+        component="button"
+        underline="hover"
+        color="inherit"
+        onClick={() => setIsRegister(!isRegister)}
+      >
+        {isRegister
+          ? "Already have an account? Login"
+          : "Don't have an account? Register"}
+      </Link>
       <DialogActions>
-        <Button onClick={handleClose}>Cancel</Button>
+        <Button onClick={handleClose} variant="outlined" color="error">
+          Cancel
+        </Button>
         {isRegister ? (
           <Button
             onClick={() => onRegister(email, password)}
-            variant="contained"
-            color="secondary"
+            variant="outlined"
+            color="primary"
           >
             Register
           </Button>
@@ -125,7 +120,7 @@ const Auth = ({ isOpen, onClose }: AuthProps) => {
             variant="contained"
             color="secondary"
           >
-            Login
+            Log in
           </Button>
         )}
       </DialogActions>
