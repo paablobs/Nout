@@ -20,6 +20,7 @@
     "@tiptap/extension-typography": "^3.10.1",
     "@tiptap/react": "^3.10.1",
     "@tiptap/starter-kit": "^3.10.1",
+    "@toolpad/core": "^0.16.0",
     "firebase": "^12.10.0",
     "lowlight": "^3.3.0",
     "material-ui-popup-state": "^5.3.6",

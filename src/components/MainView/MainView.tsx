@@ -12,7 +12,7 @@ import DeleteFolderDialog from "./DeleteFolderDialog/DeleteFolderDialog";
 import EmptyTrashDialog from "./EmptyTrashDialog/EmptyTrashDialog";
 import Sidebar from "./Sidebar/Sidebar";
 import FolderView from "./FolderView/FolderView";
-import Auth from "../Auth/Auth";
+import SignInDialog from "../SignIn/SignInDialog";
 import useNotes, { type Folder } from "../../hooks/useNotes";
 
 // styles
@@ -80,7 +80,7 @@ const MainView = () => {
 
   useEffect(() => {
     selectInitialNote();
-  }, []);
+  }, [selectInitialNote]);
 
   const getSelectedNote = () => getNoteById(selectedNoteId || "") || null;
 
@@ -247,7 +247,7 @@ const MainView = () => {
         }}
         onClose={() => setOpenEmptyTrashDialog(false)}
       />
-      <Auth
+      <SignInDialog
         isOpen={currentView === selectedView.LOGIN}
         onClose={() => setCurrentView(selectedView.NOTES)}
       />
