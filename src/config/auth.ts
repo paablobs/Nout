@@ -1,8 +1,10 @@
+import type { User, Unsubscribe } from "firebase/auth";
 import {
   browserSessionPersistence,
   setPersistence,
   signInWithPopup,
   signOut,
+  onAuthStateChanged as firebaseOnAuthStateChanged,
 } from "firebase/auth";
 import { auth, googleProvider } from "./firebase";
 
@@ -41,4 +43,11 @@ export const firebaseSignOut = async () => {
       error: errorMessage,
     };
   }
+};
+
+// Auth state observer
+export const onAuthStateChanged = (
+  callback: (user: User | null) => void,
+): Unsubscribe => {
+  return firebaseOnAuthStateChanged(auth, callback);
 };

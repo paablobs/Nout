@@ -8,6 +8,7 @@ import {
   Divider,
   Button,
   Grid,
+  Typography,
 } from "@mui/material";
 import {
   DashboardCustomizeOutlined as DashboardCustomizeIcon,
@@ -19,11 +20,12 @@ import {
   CreateNewFolderOutlined as CreateNewFolderIcon,
   EditNoteOutlined as NewNoteIcon,
   CodeOutlined as CodeIcon,
-  Login as LoginIcon,
 } from "@mui/icons-material";
 import { yellow } from "@mui/material/colors";
+import { auth } from "../../../config/firebase";
 
 import { selectedView, type SelectedView } from "../../../utils/selectedView";
+import { firebaseSignOut } from "../../../config/auth";
 
 interface Folder {
   id: string;
@@ -52,6 +54,7 @@ const Sidebar = ({
   onDeleteFolder,
   onNewNote,
 }: LeftPanelProps) => {
+  console.log("auth", auth?.currentUser?.displayName);
   return (
     <Grid container spacing={0} direction={"column"} height={"100%"}>
       <Grid size="auto">
@@ -69,20 +72,6 @@ const Sidebar = ({
               />
               Nout
             </ListItemText>
-            <Button
-              variant="contained"
-              color="info"
-              onClick={() => onViewChange(selectedView.LOGIN)}
-              sx={{
-                aspectRatio: "1 / 1",
-                minWidth: 0,
-                borderRadius: "50%",
-                padding: 1,
-                marginRight: 1,
-              }}
-            >
-              <LoginIcon fontSize="large" />
-            </Button>
             {currentView !== selectedView.TRASH &&
               currentView !== selectedView.SCRATCHPAD && (
                 <Button
@@ -155,7 +144,11 @@ const Sidebar = ({
           <Divider sx={{ margin: 2 }} />
         </List>
       </Grid>
-      <Grid size="grow" overflow={"auto"} sx={{ scrollbarGutter: "stable" }}>
+      <Grid
+        size="grow"
+        overflow={"auto"}
+        sx={{ scrollbarGutter: "stable", marginBottom: 2 }}
+      >
         <List>
           {folders.map((folder) => (
             <ListItem
@@ -190,6 +183,30 @@ const Sidebar = ({
           ))}
         </List>
       </Grid>
+      {!auth?.currentUser ? (
+        <Button
+          variant="contained"
+          color="info"
+          onClick={() => onViewChange(selectedView.LOGIN)}
+          sx={{ margin: 2 }}
+        >
+          Sign in
+        </Button>
+      ) : (
+        <>
+          <Typography variant="body2" align="center">
+            Signed as {auth?.currentUser?.displayName}
+          </Typography>
+          <Button
+            variant="outlined"
+            color="info"
+            onClick={() => firebaseSignOut()}
+            sx={{ margin: 2 }}
+          >
+            Sign out
+          </Button>
+        </>
+      )}
     </Grid>
   );
 };

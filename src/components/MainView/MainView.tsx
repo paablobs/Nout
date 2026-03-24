@@ -5,6 +5,9 @@ import { Grid } from "@mui/material";
 
 // Custom Hooks & Styles & Components
 import { useLocalStorage } from "../../hooks/useLocalStorage";
+import useLocalStorageNotes, {
+  type Folder,
+} from "../../hooks/useLocalStorageNotes";
 import { selectedView, type SelectedView } from "../../utils/selectedView";
 import Tiptap from "../TextEditor/TipTap";
 import CreateFolderDialog from "./CreateFolderDialog/CreateFolderDialog";
@@ -13,7 +16,6 @@ import EmptyTrashDialog from "./EmptyTrashDialog/EmptyTrashDialog";
 import Sidebar from "./Sidebar/Sidebar";
 import FolderView from "./FolderView/FolderView";
 import SignInDialog from "../SignIn/SignInDialog";
-import useNotes, { type Folder } from "../../hooks/useNotes";
 
 // styles
 import "./MainView.css";
@@ -46,7 +48,7 @@ const MainView = () => {
     getNoteById,
     updateNoteText,
     hideNote,
-  } = useNotes();
+  } = useLocalStorageNotes();
 
   const selectInitialNote = useEffectEvent(
     (view = currentView, folderId = selectedFolderId) => {

@@ -1,7 +1,14 @@
-import MainView from "./components/MainView/MainView";
 import { createTheme, CssBaseline, ThemeProvider } from "@mui/material";
+import SessionContext, { type Session } from "./contexts/SessionContext";
+import MainView from "./components/MainView/MainView";
+import { useEffect, useMemo, useState } from "react";
+import type { User } from "firebase/auth";
+import { onAuthStateChanged } from "./config/auth";
 
 function App() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+
   let theme = createTheme({
     // Theme customization goes here as usual, including tonalOffset and/or
     // contrastThreshold as the augmentColor() function relies on these
@@ -59,12 +66,42 @@ function App() {
     },
   });
 
+  const sessionContextValue = useMemo(
+    () => ({
+      session,
+      setSession,
+      loading,
+    }),
+    [session, loading],
+  );
+
+  useEffect(() => {
+    // Returns an `unsubscribe` function to be called during teardown
+    const unsubscribe = onAuthStateChanged((user: User | null) => {
+      if (user) {
+        setSession({
+          user: {
+            name: user.displayName || "",
+            email: user.email || "",
+          },
+        });
+      } else {
+        setSession(null);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   return (
     <>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <MainView />
-      </ThemeProvider>
+      <SessionContext.Provider value={sessionContextValue}>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <MainView />
+        </ThemeProvider>
+      </SessionContext.Provider>
     </>
   );
 }

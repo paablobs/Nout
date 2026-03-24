@@ -2,7 +2,7 @@ import { Button, ListItem } from "@mui/material";
 import { Delete as DeleteIcon } from "@mui/icons-material";
 import { selectedView, type SelectedView } from "../../../utils/selectedView";
 import CustomCard from "../../Card/Card";
-import type { Note } from "../../../hooks/useNotes";
+import type { Note } from "../../../hooks/useLocalStorageNotes";
 
 interface Folder {
   id: string;

@@ -22,7 +22,7 @@ export interface Note {
 
 export const DEFAULT_CATEGORY = "All notes";
 
-const useNotes = () => {
+const useLocalStorageNotes = () => {
   const [folders, setFolders] = useLocalStorage<Folder[]>(
     storageKeys.FOLDERS,
     [],
@@ -171,4 +171,4 @@ const useNotes = () => {
   };
 };
 
-export default useNotes;
+export default useLocalStorageNotes;
