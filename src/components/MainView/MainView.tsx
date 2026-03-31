@@ -82,7 +82,9 @@ const MainView = () => {
 
   useEffect(() => {
     selectInitialNote();
-  }, [selectInitialNote]);
+    //! DO NOT add selectInitialNote to dependencies, it will cause auto select first note on every render and break the app
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const getSelectedNote = () => getNoteById(selectedNoteId || "") || null;
 
@@ -165,7 +167,7 @@ const MainView = () => {
 
   const handleViewChange = (view: SelectedView) => {
     setCurrentView(view);
-    if (view !== selectedView.FOLDERS && view !== selectedView.LOGIN) {
+    if (view !== selectedView.FOLDERS) {
       selectInitialNote(view);
     }
   };
