@@ -8,6 +8,7 @@ import { useLocalStorage } from "../../hooks/useLocalStorage";
 import useLocalStorageNotes, {
   type Folder,
 } from "../../hooks/useLocalStorageNotes";
+import { useNotes } from "../../hooks/useNotes";
 import { selectedView, type SelectedView } from "../../utils/selectedView";
 import Tiptap from "../TextEditor/TipTap";
 import CreateFolderDialog from "./CreateFolderDialog/CreateFolderDialog";
@@ -38,7 +39,7 @@ const MainView = () => {
   const {
     notes,
     folders,
-    addNote,
+    // addNote,
     addFolder,
     deleteFolder,
     addFavorite,
@@ -49,6 +50,8 @@ const MainView = () => {
     updateNoteText,
     hideNote,
   } = useLocalStorageNotes();
+
+  const { addNote } = useNotes();
 
   const selectInitialNote = useEffectEvent(
     (view = currentView, folderId = selectedFolderId) => {
@@ -122,10 +125,10 @@ const MainView = () => {
     setSelectedFolderId(null);
   };
 
-  const handleNewNote = () => {
-    const noteId = addNote(currentView, selectedFolderId || undefined);
-    setSelectedNoteId(noteId);
-  };
+  //   const handleNewNote = () => {
+  //   const noteId = addNote(currentView, selectedFolderId || undefined);
+  //   setSelectedNoteId(noteId);
+  // };
 
   const handleFavNote = (id: string) => {
     addFavorite(id);
@@ -178,7 +181,7 @@ const MainView = () => {
   };
 
   return (
-    <div className="mainView">
+    <>
       <Grid container spacing={3} className="mainView__gridContainer">
         <Grid width={300}>
           <div className="mainView__leftPanel">
@@ -190,7 +193,9 @@ const MainView = () => {
               onFolderSelect={handleFolderSelect}
               onAddFolder={handleClickOpen}
               onDeleteFolder={handleOpenDeleteDialog}
-              onNewNote={handleNewNote}
+              onNewNote={() =>
+                addNote(currentView, selectedFolderId || undefined)
+              }
             />
           </div>
         </Grid>
@@ -255,7 +260,7 @@ const MainView = () => {
         isOpen={currentView === selectedView.LOGIN}
         onClose={() => setCurrentView(selectedView.NOTES)}
       />
-    </div>
+    </>
   );
 };
 

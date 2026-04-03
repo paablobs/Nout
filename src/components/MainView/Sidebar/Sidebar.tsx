@@ -54,7 +54,6 @@ const Sidebar = ({
   onDeleteFolder,
   onNewNote,
 }: LeftPanelProps) => {
-  console.log("auth", auth?.currentUser?.displayName);
   return (
     <Grid container spacing={0} direction={"column"} height={"100%"}>
       <Grid size="auto">
