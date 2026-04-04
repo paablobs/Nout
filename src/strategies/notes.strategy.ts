@@ -1,14 +1,6 @@
-import type { Note } from "./notes.model";
+import type { Note } from "./note.model";
 
 export interface NotesStrategy {
+  notes: Promise<Note[]>;
   addNote: (note: Note) => Promise<void>;
-  addFolder: () => Promise<void>;
-  deleteFolder: () => Promise<void>;
-  addFavorite: () => Promise<void>;
-  moveNoteToFolder: () => Promise<void>;
-  deleteNotes: () => Promise<void>;
-  restoreNote: () => Promise<void>;
-  getNoteById: () => Promise<void>;
-  updateNoteText: () => Promise<void>;
-  hideNote: () => Promise<void>;
 }

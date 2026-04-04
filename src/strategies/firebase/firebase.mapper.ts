@@ -1,4 +1,4 @@
-import type { Note } from "../notes.model";
+import type { Note } from "../note.model";
 import { Timestamp } from "firebase/firestore";
 
 export interface FirestoreNote {
@@ -19,4 +19,15 @@ export const toFirestore = (note: Note): FirestoreNote => ({
   isHidden: note.isHidden,
   createdAt: Timestamp.fromDate(note.createdAt),
   updatedAt: Timestamp.fromDate(note.updatedAt),
+});
+
+export const fromFirestore = (id: string, data: FirestoreNote): Note => ({
+  id,
+  text: data.text,
+  folderId: data.folderId,
+  isFav: data.isFav,
+  isTrash: data.isTrash,
+  isHidden: data.isHidden,
+  createdAt: data.createdAt.toDate(),
+  updatedAt: data.updatedAt.toDate(),
 });

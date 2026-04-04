@@ -1,8 +1,10 @@
 import { storageKeys } from "../../utils/storageKeys";
-import { useLocalStorage } from "../../hooks/useLocalStorage";
-import { toLocal } from "./local.mapper";
-import type { Note } from "../notes.model";
-import { getLocalStorageItem } from "../../utils/localStorageHelper";
+import { fromLocal, toLocal, type LocalStorageNote } from "./local.mapper";
+import type { Note } from "../note.model";
+import {
+  getLocalStorageItem,
+  setLocalStorageItem,
+} from "../../utils/localStorageHelper";
 
 export interface Folder {
   id: string;
@@ -13,22 +15,50 @@ export interface Folder {
 export const DEFAULT_CATEGORY = "All notes";
 
 const useLocalStorageNotesStrategy = () => {
-  const [notes, setNotes] = useLocalStorage<Record<string, Note>>(
-    storageKeys.NOTES,
-    {},
-  );
+  const getNotes = async (): Promise<Note[]> => {
+    const stored = getLocalStorageItem(storageKeys.NOTES);
+    const parsedStored = stored ? JSON.parse(stored) : {};
+
+    if (!parsedStored) return [];
+
+    return Object.values(parsedStored as Record<string, LocalStorageNote>).map(
+      fromLocal,
+    );
+  };
+
+  const getFolders = async (): Promise<Folder[]> => {
+    return getLocalStorageItem(storageKeys.FOLDERS)
+      ? JSON.parse(getLocalStorageItem(storageKeys.FOLDERS) as string)
+      : [];
+  };
 
   const addNote = async (note: Note) => {
     const stored = getLocalStorageItem(storageKeys.NOTES);
     const parsedStored = stored ? JSON.parse(stored) : {};
     const localNote = toLocal(note);
 
-    setNotes({ [localNote.id]: localNote, ...parsedStored });
+    setLocalStorageItem(storageKeys.NOTES, {
+      [localNote.id]: localNote,
+      ...parsedStored,
+    });
+  };
+
+  const addFolder = async (folder: Folder) => {
+    // const stored: Folder[] = JSON.parse(
+    //   localStorage.getItem(STORAGE_KEY) ?? "[]",
+    // );
+    const stored: Folder[] = getLocalStorageItem(storageKeys.FOLDERS)
+      ? JSON.parse(getLocalStorageItem(storageKeys.FOLDERS) as string)
+      : [];
+
+    setLocalStorageItem(storageKeys.FOLDERS, [folder, ...stored]);
   };
 
   return {
-    notes,
+    getNotes,
+    getFolders,
     addNote,
+    addFolder,
   };
 };
 

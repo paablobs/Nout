@@ -40,7 +40,7 @@ const MainView = () => {
     notes,
     folders,
     // addNote,
-    addFolder,
+    // addFolder,
     deleteFolder,
     addFavorite,
     moveNoteToFolder,
@@ -51,7 +51,7 @@ const MainView = () => {
     hideNote,
   } = useLocalStorageNotes();
 
-  const { addNote } = useNotes();
+  const { addNote, addFolder } = useNotes();
 
   const selectInitialNote = useEffectEvent(
     (view = currentView, folderId = selectedFolderId) => {
