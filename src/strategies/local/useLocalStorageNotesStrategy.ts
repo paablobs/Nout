@@ -19,7 +19,6 @@ const useLocalStorageNotesStrategy = () => {
   );
 
   const addNote = async (note: Note) => {
-    // const stored = JSON.parse(localStorage.getItem("notes") ?? "{}");
     const stored = getLocalStorageItem(storageKeys.NOTES);
     const parsedStored = stored ? JSON.parse(stored) : {};
     const localNote = toLocal(note);

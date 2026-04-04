@@ -193,8 +193,8 @@ const MainView = () => {
               onFolderSelect={handleFolderSelect}
               onAddFolder={handleClickOpen}
               onDeleteFolder={handleOpenDeleteDialog}
-              onNewNote={() =>
-                addNote(currentView, selectedFolderId || undefined)
+              onNewNote={async () =>
+                await addNote(currentView, selectedFolderId || undefined)
               }
             />
           </div>
