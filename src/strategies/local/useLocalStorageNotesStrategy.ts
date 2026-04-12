@@ -44,9 +44,6 @@ const useLocalStorageNotesStrategy = () => {
   };
 
   const addFolder = async (folder: Folder) => {
-    // const stored: Folder[] = JSON.parse(
-    //   localStorage.getItem(STORAGE_KEY) ?? "[]",
-    // );
     const stored: Folder[] = getLocalStorageItem(storageKeys.FOLDERS)
       ? JSON.parse(getLocalStorageItem(storageKeys.FOLDERS) as string)
       : [];

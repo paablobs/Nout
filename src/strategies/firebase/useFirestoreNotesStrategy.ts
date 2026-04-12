@@ -1,4 +1,11 @@
-import { addDoc, collection, getDocs, Timestamp } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  getDocs,
+  Timestamp,
+  setDoc,
+  doc,
+} from "firebase/firestore";
 import { db } from "../../config/firebase";
 import type { Note } from "../note.model";
 import { fromFirestore, toFirestore } from "./firebase.mapper";
@@ -50,12 +57,26 @@ const useFirestoreNotesStrategy = (userId: string | undefined) => {
     }));
   };
 
+  // Persist a note using the client-provided note.id as the document ID so
+  // subsequent updates can reference the same document.
   const addNote = async (note: Note) => {
     if (!userId) {
       throw new Error("User ID is required to add a note to Firestore.");
     }
 
-    await addDoc(collection(db, "users", userId, "notes"), toFirestore(note));
+    const noteDoc = doc(db, "users", userId, "notes", note.id);
+    await setDoc(noteDoc, toFirestore(note));
+  };
+
+  // Update an existing note document in Firestore. Uses setDoc with merge to
+  // safely update fields (timestamps are handled by the mapper).
+  const updateNote = async (note: Note) => {
+    if (!userId) {
+      throw new Error("User ID is required to update notes in Firestore.");
+    }
+
+    const noteDoc = doc(db, "users", userId, "notes", note.id);
+    await setDoc(noteDoc, toFirestore(note), { merge: true });
   };
 
   const addFolder = async (folder: Folder) => {
@@ -71,6 +92,7 @@ const useFirestoreNotesStrategy = (userId: string | undefined) => {
     getFolders,
     addNote,
     addFolder,
+    updateNote,
   };
 };
 

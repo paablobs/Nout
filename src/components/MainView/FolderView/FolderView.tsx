@@ -2,17 +2,13 @@ import { Button, ListItem } from "@mui/material";
 import { Delete as DeleteIcon } from "@mui/icons-material";
 import { selectedView, type SelectedView } from "../../../utils/selectedView";
 import CustomCard from "../../Card/Card";
-import type { Note } from "../../../hooks/useLocalStorageNotes";
-
-interface Folder {
-  id: string;
-  name: string;
-  color?: string;
-}
+import type { Note } from "../../../strategies/note.model";
+import type { Folder } from "../../../strategies/folder.model";
+// import type { Note } from "../../../hooks/useLocalStorageNotes";
 
 interface MiddlePanelProps {
   currentView: SelectedView;
-  notes: Record<string, Note>;
+  notes: Note[];
   folders: Folder[];
   selectedFolderId: string | null;
   selectedNoteId: string | null;
@@ -42,7 +38,7 @@ const FolderView = ({
   return (
     <>
       {currentView === selectedView.NOTES &&
-        Object.values(notes)
+        notes
           .filter((card) => !card.isTrash && !card.isHidden)
           .map(
             (card) =>
@@ -51,7 +47,6 @@ const FolderView = ({
                   key={card.id}
                   id={card.id}
                   text={card.text}
-                  category={card.category}
                   isFav={card.isFav}
                   onFav={() => onFavNote(card.id)}
                   onTrash={() => onTrashNote(card.id)}
@@ -68,7 +63,7 @@ const FolderView = ({
               ),
           )}
       {currentView === selectedView.FAVORITES &&
-        Object.values(notes)
+        notes
           .filter((card) => card.isFav && !card.isTrash && !card.isHidden)
           .map(
             (card) =>
@@ -77,7 +72,6 @@ const FolderView = ({
                   key={card.id}
                   id={card.id}
                   text={card.text}
-                  category={card.category}
                   isFav={card.isFav}
                   onFav={() => onFavNote(card.id)}
                   onTrash={() => onTrashNote(card.id)}
@@ -95,7 +89,7 @@ const FolderView = ({
           )}
       {currentView === selectedView.FOLDERS &&
         selectedFolderId &&
-        Object.values(notes)
+        notes
           .filter((note) => note.folderId === selectedFolderId && !note.isTrash)
           .map(
             (card) =>
@@ -104,7 +98,6 @@ const FolderView = ({
                   key={card.id}
                   id={card.id}
                   text={card.text}
-                  category={card.category}
                   isFav={card.isFav}
                   onFav={() => onFavNote(card.id)}
                   onTrash={() => onTrashNote(card.id)}
@@ -138,7 +131,7 @@ const FolderView = ({
               Empty Trash
             </Button>
           </ListItem>
-          {Object.values(notes)
+          {notes
             .filter((card) => card.isTrash)
             .map(
               (card) =>
@@ -147,7 +140,6 @@ const FolderView = ({
                     key={card.id}
                     id={card.id}
                     text={card.text}
-                    category={card.category}
                     isTrash={card.isTrash}
                     onRestore={
                       onRestoreNote ? () => onRestoreNote(card.id) : undefined

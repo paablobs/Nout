@@ -8,7 +8,7 @@ import { useLocalStorage } from "../../hooks/useLocalStorage";
 import useLocalStorageNotes, {
   type Folder,
 } from "../../hooks/useLocalStorageNotes";
-import { useNotes } from "../../hooks/useNotes";
+import useNotes from "../../hooks/useNotes";
 import { selectedView, type SelectedView } from "../../utils/selectedView";
 import Tiptap from "../TextEditor/TipTap";
 import CreateFolderDialog from "./CreateFolderDialog/CreateFolderDialog";
@@ -36,48 +36,36 @@ const MainView = () => {
     "Welcome to Nout!\n\nThis is your scratchpad. You can write down quick notes here that won't be saved permanently.\n\nFeel free to type anything you want, and it will be saved automatically as you type.",
   );
 
+  const localNotesHook = useLocalStorageNotes();
+
   const {
     notes,
     folders,
-    // addNote,
-    // addFolder,
-    deleteFolder,
-    addFavorite,
+    addNote,
+    addFolder,
+    toggleFavorite,
     moveNoteToFolder,
     deleteNotes,
     restoreNote,
     getNoteById,
     updateNoteText,
     hideNote,
-  } = useLocalStorageNotes();
-
-  const { addNote, addFolder } = useNotes();
+  } = useNotes();
 
   const selectInitialNote = useEffectEvent(
     (view = currentView, folderId = selectedFolderId) => {
       if (view === selectedView.SCRATCHPAD) {
         setSelectedNoteId(null);
       } else if (view === selectedView.NOTES) {
-        setSelectedNoteId(
-          Object.keys(notes).find((id) => !notes[id].isTrash) || null,
-        );
+        setSelectedNoteId(notes.find((n) => !n.isTrash)?.id ?? null);
       } else if (view === selectedView.FAVORITES) {
-        setSelectedNoteId(
-          Object.keys(notes).find(
-            (id) => notes[id].isFav && !notes[id].isTrash,
-          ) || null,
-        );
+        setSelectedNoteId(notes.find((n) => n.isFav && !n.isTrash)?.id ?? null);
       } else if (view === selectedView.TRASH) {
-        setSelectedNoteId(
-          Object.keys(notes).find((id) => notes[id].isTrash) || null,
-        );
+        setSelectedNoteId(notes.find((n) => n.isTrash)?.id ?? null);
       } else if (view === selectedView.FOLDERS && folderId) {
-        const firstFolderNoteId = Object.keys(notes).find(
-          (id) => notes[id].folderId === folderId && !notes[id].isTrash,
+        const firstFolderNote = notes.find(
+          (n) => n.folderId === folderId && !n.isTrash,
         );
-        const firstFolderNote = firstFolderNoteId
-          ? notes[firstFolderNoteId]
-          : null;
         setSelectedNoteId(firstFolderNote ? firstFolderNote.id : null);
       }
     },
@@ -121,7 +109,10 @@ const MainView = () => {
   };
 
   const handleDeleteFolder = (id: string) => {
-    deleteFolder(id);
+    // delegate folder deletion to the local hook which contains the logic
+    // to mark notes as trashed and update categories. We keep the local
+    // deletion behavior for now.
+    localNotesHook?.deleteFolder?.(id);
     setSelectedFolderId(null);
   };
 
@@ -131,7 +122,8 @@ const MainView = () => {
   // };
 
   const handleFavNote = (id: string) => {
-    addFavorite(id);
+    // use the new hook's toggleFavorite API
+    toggleFavorite(id);
   };
 
   const handleHideNote = (id: string) => {
@@ -248,9 +240,7 @@ const MainView = () => {
       <EmptyTrashDialog
         isOpen={openEmptyTrashDialog}
         onEmptyTrash={() => {
-          const trashNoteIds = Object.keys(notes).filter(
-            (id) => notes[id].isTrash,
-          );
+          const trashNoteIds = notes.filter((n) => n.isTrash).map((n) => n.id);
           deleteNotes(trashNoteIds, true);
           setOpenEmptyTrashDialog(false);
         }}

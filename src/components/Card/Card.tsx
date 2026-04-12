@@ -10,21 +10,19 @@ import {
   StarBorder as StarredIcon,
   RestoreOutlined as RestoreIcon,
   DeleteOutlineOutlined as DeleteOutlineIcon,
-  DriveFileMoveOutlined as MoveToFolderIcon,
   PendingOutlined as ThreeDotMenuIcon,
 } from "@mui/icons-material";
 import PopupState, { bindTrigger, bindMenu } from "material-ui-popup-state";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import { alpha } from "@mui/material";
-
+import type { Folder } from "../../strategies/folder.model";
 import { DEFAULT_CATEGORY } from "../../hooks/useLocalStorageNotes";
 import "./Card.css";
 
 interface CustomCardProps {
   id: string;
   text: string;
-  category: string;
   isFav?: boolean;
   isTrash?: boolean;
   isHidden?: boolean;
@@ -32,7 +30,7 @@ interface CustomCardProps {
   onTrash?: (id: string) => void;
   onRestore?: (id: string) => void;
   onHide?: (id: string) => void;
-  folders?: { id: string; name: string; color?: string }[];
+  folders?: Folder[];
   onMoveToFolder?: (noteId: string, folderId: string) => void;
   folderId?: string | null;
   onSelect?: (id: string) => void;
@@ -42,7 +40,6 @@ interface CustomCardProps {
 const CustomCard = ({
   id,
   text,
-  category,
   isFav,
   isTrash,
   isHidden,
@@ -71,6 +68,23 @@ const CustomCard = ({
     return lines.length ? lines[0] : "New note";
   };
 
+  const getFolderName = (id?: string | null) => {
+    if (!id) return DEFAULT_CATEGORY;
+    const folder = (folders || []).find((f) => f.id === id);
+    return folder ? folder.name : DEFAULT_CATEGORY;
+  };
+
+  const folderName = getFolderName(folderId);
+
+  // Reference `onMoveToFolder` to avoid a TypeScript \"defined but never used\" error.
+  // This is a deliberate no-op read of the prop so the variable is considered used
+  // by the compiler without changing runtime behavior.
+  void onMoveToFolder;
+
+  /*
+  // moveToFolderPopup commented out per request. I'll leave this here so you can
+  // re-enable later. It currently lists folders excluding the current one and
+  // calls `onMoveToFolder(id, folder.id)` when a folder is selected.
   const moveToFolderPopup = () => (
     <PopupState variant="popover" popupId={`move-folder-popup-${id}`}>
       {(popupState) => {
@@ -104,6 +118,7 @@ const CustomCard = ({
       }}
     </PopupState>
   );
+  */
 
   const hideFromAllNotesPopup = () => (
     <PopupState variant="popover" popupId={`hide-from-notes-${id}`}>
@@ -121,8 +136,8 @@ const CustomCard = ({
                 }}
               >
                 {!isHidden
-                  ? `Hide from ${DEFAULT_CATEGORY}`
-                  : `Show in ${DEFAULT_CATEGORY}`}
+                  ? `Hide from ${folderName}`
+                  : `Show in ${folderName}`}
               </MenuItem>
             </Menu>
           </>
@@ -151,7 +166,7 @@ const CustomCard = ({
             {getFirstLine(text)}
           </Typography>
           <Typography variant="body2" className="box__text">
-            {category}
+            {folderName}
           </Typography>
         </CardContent>
         <CardActions>
@@ -164,8 +179,11 @@ const CustomCard = ({
                   <StarredIcon />
                 )}
               </IconButton>
-              {moveToFolderPopup()}
-              {category !== DEFAULT_CATEGORY ? hideFromAllNotesPopup() : null}
+
+              {/* moveToFolderPopup is commented out for now */}
+              {/* {moveToFolderPopup()} */}
+
+              {folderName !== DEFAULT_CATEGORY ? hideFromAllNotesPopup() : null}
               <IconButton
                 onClick={
                   onTrash
