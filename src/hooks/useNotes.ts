@@ -6,6 +6,7 @@ import type { Folder } from "../strategies/folder.model";
 import useFirestoreNotesStrategy from "../strategies/firebase/useFirestoreNotesStrategy";
 import useLocalStorageNotesStrategy from "../strategies/local/useLocalStorageNotesStrategy";
 import { storageKeys } from "../utils/storageKeys";
+import randomColor from "../utils/randomColor";
 import {
   getLocalStorageItem,
   setLocalStorageItem,
@@ -26,11 +27,7 @@ type NotesStrategy = {
 const createFolder = (folderName: string): Folder => ({
   id: uuidv4(),
   name: folderName.trim(),
-  color:
-    "#" +
-    Math.floor(Math.random() * 16777215)
-      .toString(16)
-      .padStart(6, "0"),
+  color: randomColor(),
 });
 
 export const useNotes = () => {
@@ -71,7 +68,8 @@ export const useNotes = () => {
     return () => {
       mounted = false;
     };
-  }, [userId, strategy]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   const persistNoteToLocalStorage = useCallback((note: Note) => {
     try {
