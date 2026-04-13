@@ -76,15 +76,9 @@ const CustomCard = ({
 
   const folderName = getFolderName(folderId);
 
-  // Reference `onMoveToFolder` to avoid a TypeScript \"defined but never used\" error.
-  // This is a deliberate no-op read of the prop so the variable is considered used
-  // by the compiler without changing runtime behavior.
   void onMoveToFolder;
 
   /*
-  // moveToFolderPopup commented out per request. I'll leave this here so you can
-  // re-enable later. It currently lists folders excluding the current one and
-  // calls `onMoveToFolder(id, folder.id)` when a folder is selected.
   const moveToFolderPopup = () => (
     <PopupState variant="popover" popupId={`move-folder-popup-${id}`}>
       {(popupState) => {

@@ -4,7 +4,6 @@ import { selectedView, type SelectedView } from "../../../utils/selectedView";
 import CustomCard from "../../Card/Card";
 import type { Note } from "../../../strategies/note.model";
 import type { Folder } from "../../../strategies/folder.model";
-// import type { Note } from "../../../hooks/useLocalStorageNotes";
 
 interface MiddlePanelProps {
   currentView: SelectedView;

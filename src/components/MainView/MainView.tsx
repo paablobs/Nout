@@ -109,20 +109,11 @@ const MainView = () => {
   };
 
   const handleDeleteFolder = (id: string) => {
-    // delegate folder deletion to the local hook which contains the logic
-    // to mark notes as trashed and update categories. We keep the local
-    // deletion behavior for now.
     localNotesHook?.deleteFolder?.(id);
     setSelectedFolderId(null);
   };
 
-  //   const handleNewNote = () => {
-  //   const noteId = addNote(currentView, selectedFolderId || undefined);
-  //   setSelectedNoteId(noteId);
-  // };
-
   const handleFavNote = (id: string) => {
-    // use the new hook's toggleFavorite API
     toggleFavorite(id);
   };
 

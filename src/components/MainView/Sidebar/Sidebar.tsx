@@ -26,12 +26,7 @@ import { auth } from "../../../config/firebase";
 
 import { selectedView, type SelectedView } from "../../../utils/selectedView";
 import { firebaseSignOut } from "../../../config/auth";
-
-interface Folder {
-  id: string;
-  name: string;
-  color?: string;
-}
+import type { Folder } from "../../../strategies/folder.model";
 
 interface LeftPanelProps {
   currentView: SelectedView;

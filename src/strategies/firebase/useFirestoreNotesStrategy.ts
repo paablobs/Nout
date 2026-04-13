@@ -57,8 +57,6 @@ const useFirestoreNotesStrategy = (userId: string | undefined) => {
     }));
   };
 
-  // Persist a note using the client-provided note.id as the document ID so
-  // subsequent updates can reference the same document.
   const addNote = async (note: Note) => {
     if (!userId) {
       throw new Error("User ID is required to add a note to Firestore.");
@@ -68,8 +66,6 @@ const useFirestoreNotesStrategy = (userId: string | undefined) => {
     await setDoc(noteDoc, toFirestore(note));
   };
 
-  // Update an existing note document in Firestore. Uses setDoc with merge to
-  // safely update fields (timestamps are handled by the mapper).
   const updateNote = async (note: Note) => {
     if (!userId) {
       throw new Error("User ID is required to update notes in Firestore.");

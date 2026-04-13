@@ -15,21 +15,6 @@ import {
   type LocalStorageNote,
 } from "../strategies/local/local.mapper";
 
-/**
- * A React hook that provides notes & folders arrays and mutation functions.
- *
- * It delegates persistence to strategies (firestore / local). Because strategy
- * interfaces currently only guarantee `getNotes`, `getFolders`, `addNote` and
- * `addFolder`, this hook implements other mutations locally and persists them
- * to localStorage when the user is not authenticated. For authenticated users
- * the hook will update local state optimistically and still call `addNote` /
- * `addFolder` for creation; other server-side sync operations should be added
- * to the firestore strategy for full parity.
- */
-
-// createNote removed — not used in this hook. Note creation is handled inline
-// in `addNote` to avoid unused-symbol and placeholder logic.
-
 type NotesStrategy = {
   getNotes: () => Promise<Note[]>;
   getFolders: () => Promise<Folder[]>;
@@ -58,7 +43,6 @@ export const useNotes = () => {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // load notes & folders from the selected strategy
   useEffect(() => {
     let mounted = true;
     const load = async () => {
@@ -70,8 +54,6 @@ export const useNotes = () => {
         ]);
         if (!mounted) return;
         setNotes(ns ?? []);
-        // cast to the strategy Folder[] type to avoid mismatches between local strategy
-        // folder types (color optional) and the canonical Folder type which requires color.
         setFolders((fs ?? []) as Folder[]);
       } catch (err) {
         // If fetching fails for authenticated firestore, try to fallback to local storage for stability
@@ -89,10 +71,8 @@ export const useNotes = () => {
     return () => {
       mounted = false;
     };
-    // Intentionally only depend on userId so reloads happen when auth changes.
   }, [userId, strategy]);
 
-  // Helper to persist an updated note to localStorage (used when unauthenticated)
   const persistNoteToLocalStorage = useCallback((note: Note) => {
     try {
       const raw = getLocalStorageItem(storageKeys.NOTES);
@@ -107,7 +87,6 @@ export const useNotes = () => {
     }
   }, []);
 
-  // Helper to remove note(s) from localStorage (for permanent deletion)
   const removeNotesFromLocalStorage = useCallback((ids: string[]) => {
     try {
       const raw = getLocalStorageItem(storageKeys.NOTES);
@@ -125,8 +104,6 @@ export const useNotes = () => {
 
   const addNote = useCallback(
     async (_currentView: string, selectedFolderId?: string) => {
-      // build note. Caller may expect the note to be favored when currentView === FAVORITES;
-      // we cannot import selectedView here without risking circulars; caller in MainView passes the right flag through currentView
       const now = new Date();
       const note: Note = {
         id: uuidv4(),
@@ -139,14 +116,11 @@ export const useNotes = () => {
         updatedAt: now,
       };
 
-      // set locally first
       setNotes((prev) => [note, ...prev]);
 
-      // persist using strategy's addNote when available
       try {
         await strategy.addNote(note);
       } catch (err) {
-        // if persistence failed and we are unauthenticated, ensure localStorage stays in sync
         if (!userId) {
           persistNoteToLocalStorage(note);
         } else {
@@ -170,7 +144,6 @@ export const useNotes = () => {
         await strategy.addFolder(folder);
       } catch (err) {
         if (!userId) {
-          // persist to localStorage for folders key
           try {
             const raw = getLocalStorageItem(storageKeys.FOLDERS);
             const parsed: Folder[] = raw ? JSON.parse(raw) : [];
@@ -213,7 +186,6 @@ export const useNotes = () => {
 
       if (!updatedNote) return;
 
-      // Persist changes locally if unauthenticated, otherwise persist to server
       if (!userId) {
         persistNoteToLocalStorage(updatedNote);
       } else {
@@ -249,16 +221,15 @@ export const useNotes = () => {
   const deleteNotes = useCallback(
     async (ids: string[], permanent = false) => {
       if (permanent) {
-        // remove from local state
         setNotes((prev) => prev.filter((n) => !ids.includes(n.id)));
         if (!userId) {
           removeNotesFromLocalStorage(ids);
         } else {
-          // TODO: implement server-side deletion in strategy
-          // console.warn("Permanent deletion for authenticated users not implemented");
+          console.warn(
+            "Permanent deletion for authenticated users not implemented",
+          );
         }
       } else {
-        // mark as trashed
         setNotes((prev) =>
           prev.map((n) =>
             ids.includes(n.id)
@@ -267,7 +238,6 @@ export const useNotes = () => {
           ),
         );
         if (!userId) {
-          // persist trashed flag
           const raw = getLocalStorageItem(storageKeys.NOTES);
           const parsed: Record<string, LocalStorageNote> = raw
             ? JSON.parse(raw)
@@ -285,7 +255,7 @@ export const useNotes = () => {
           });
           setLocalStorageItem(storageKeys.NOTES, parsed);
         } else {
-          // TODO: server-side trash implementation
+          console.warn("Trash for authenticated users not implemented");
         }
       }
     },
@@ -312,7 +282,7 @@ export const useNotes = () => {
           setLocalStorageItem(storageKeys.NOTES, parsed);
         }
       } else {
-        // TODO server-side restore
+        console.warn("Restore for authenticated users not implemented");
       }
     },
     [userId],
