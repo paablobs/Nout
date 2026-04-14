@@ -9,7 +9,7 @@ import {
   type PropsWithChildren,
 } from "react";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
-import { auth, signInToCloud } from "../config/auth";
+import { auth, signInWithGoogle } from "../config/auth";
 import { firebaseEnabled } from "../config/firebase";
 
 interface SessionContextValue {
@@ -49,7 +49,7 @@ export const SessionProvider = ({ children }: PropsWithChildren) => {
         if (!firebaseEnabled) return;
         setLoading(true);
         try {
-          await signInToCloud();
+          await signInWithGoogle();
         } finally {
           setLoading(false);
         }

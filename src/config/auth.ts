@@ -1,8 +1,9 @@
 import {
   browserLocalPersistence,
+  GoogleAuthProvider,
   getAuth,
   setPersistence,
-  signInAnonymously,
+  signInWithPopup,
   type Auth,
   type UserCredential,
 } from "firebase/auth";
@@ -14,7 +15,12 @@ if (auth && firebaseEnabled) {
   void setPersistence(auth, browserLocalPersistence);
 }
 
-export const signInToCloud = async (): Promise<UserCredential | null> => {
+const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({
+  prompt: "select_account",
+});
+
+export const signInWithGoogle = async (): Promise<UserCredential | null> => {
   if (!auth) return null;
-  return signInAnonymously(auth);
+  return signInWithPopup(auth, googleProvider);
 };

@@ -202,8 +202,8 @@ const Sidebar = ({
           {!cloudEnabled
             ? "Cloud disabled"
             : cloudConnected
-              ? "Disconnect cloud"
-              : "Connect cloud"}
+              ? "Sign out from Google"
+              : "Sign in with Google"}
         </Button>
       </Grid>
     </Grid>
