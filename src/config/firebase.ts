@@ -8,12 +8,12 @@ import {
 } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: "AIzaSyBRaeXTYA3ULuIsns6Zzhwly78-nQ1aZjs",
+  authDomain: "nout-103f0.firebaseapp.com",
+  projectId: "nout-103f0",
+  storageBucket: "nout-103f0.firebasestorage.app",
+  messagingSenderId: "518554411474",
+  appId: "1:518554411474:web:c5228f8c835bc3eab5a80b",
 };
 
 export const firebaseEnabled = [
