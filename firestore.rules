@@ -1,0 +1,91 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function hasOptionalString(data, field, maxLen) {
+      return !(field in data) || (data[field] is string && data[field].size() <= maxLen);
+    }
+
+    function isValidFolder(folderId) {
+      return request.resource.data.keys().hasAll(["id", "name"])
+        && request.resource.data.keys().hasOnly(["id", "name", "color"])
+        && request.resource.data.id is string
+        && request.resource.data.id == folderId
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 80
+        && hasOptionalString(request.resource.data, "color", 32);
+    }
+
+    function isValidNote(noteId) {
+      return request.resource.data.keys().hasAll([
+          "id",
+          "text",
+          "category",
+          "isFav",
+          "isTrash",
+          "isHidden"
+        ])
+        && request.resource.data.keys().hasOnly([
+          "id",
+          "text",
+          "category",
+          "isFav",
+          "isTrash",
+          "isHidden",
+          "folderId"
+        ])
+        && request.resource.data.id is string
+        && request.resource.data.id == noteId
+        && request.resource.data.text is string
+        && request.resource.data.text.size() <= 50000
+        && request.resource.data.category is string
+        && request.resource.data.category.size() > 0
+        && request.resource.data.category.size() <= 100
+        && request.resource.data.isFav is bool
+        && request.resource.data.isTrash is bool
+        && request.resource.data.isHidden is bool
+        && hasOptionalString(request.resource.data, "folderId", 128);
+    }
+
+    function isValidScratchpad() {
+      return request.resource.data.keys().hasOnly(["value"])
+        && request.resource.data.value is string
+        && request.resource.data.value.size() <= 200000;
+    }
+
+    match /users/{userId} {
+      allow read, write: if false;
+
+      match /folders/{folderId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidFolder(folderId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /notes/{noteId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidNote(noteId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /meta/scratchpad {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidScratchpad();
+        allow delete: if isOwner(userId);
+      }
+
+      match /{document=**} {
+        allow read, write: if false;
+      }
+    }
+  }
+}

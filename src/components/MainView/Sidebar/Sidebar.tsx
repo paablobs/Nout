@@ -34,6 +34,11 @@ interface LeftPanelProps {
   currentView: SelectedView;
   selectedFolderId: string | null;
   folders: Folder[];
+  loading: boolean;
+  cloudEnabled: boolean;
+  cloudConnected: boolean;
+  onCloudSignIn: () => Promise<void>;
+  onCloudSignOut: () => Promise<void>;
   onViewChange: (view: SelectedView) => void;
   onFolderSelect: (folderId: string) => void;
   onAddFolder: () => void;
@@ -45,6 +50,11 @@ const Sidebar = ({
   currentView,
   selectedFolderId,
   folders,
+  loading,
+  cloudEnabled,
+  cloudConnected,
+  onCloudSignIn,
+  onCloudSignOut,
   onViewChange,
   onFolderSelect,
   onAddFolder,
@@ -74,6 +84,7 @@ const Sidebar = ({
                   variant="contained"
                   color="secondary"
                   onClick={onNewNote}
+                  disabled={loading}
                   sx={{
                     aspectRatio: "1 / 1",
                     minWidth: 0,
@@ -174,6 +185,26 @@ const Sidebar = ({
             </ListItem>
           ))}
         </List>
+      </Grid>
+      <Grid size="auto" marginBottom={1}>
+        <Button
+          fullWidth
+          variant="outlined"
+          disabled={!cloudEnabled || loading}
+          onClick={() => {
+            if (cloudConnected) {
+              void onCloudSignOut();
+            } else {
+              void onCloudSignIn();
+            }
+          }}
+        >
+          {!cloudEnabled
+            ? "Cloud disabled"
+            : cloudConnected
+              ? "Disconnect cloud"
+              : "Connect cloud"}
+        </Button>
       </Grid>
     </Grid>
   );

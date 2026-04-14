@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 // Components & Icons
 import { Grid } from "@mui/material";
@@ -6,6 +6,7 @@ import { Grid } from "@mui/material";
 // Custom Hooks & Styles & Components
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import { selectedView, type SelectedView } from "../../utils/selectedView";
+import { storageKeys } from "../../utils/storageKeys";
 import Tiptap from "../TextEditor/TipTap";
 import CreateFolderDialog from "./CreateFolderDialog/CreateFolderDialog";
 import DeleteFolderDialog from "./DeleteFolderDialog/DeleteFolderDialog";
@@ -13,6 +14,10 @@ import EmptyTrashDialog from "./EmptyTrashDialog/EmptyTrashDialog";
 import Sidebar from "./Sidebar/Sidebar";
 import FolderView from "./FolderView/FolderView";
 import useNotes, { type Folder } from "../../hooks/useNotes";
+import { DEFAULT_SCRATCHPAD_CONTENT } from "../../utils/constants";
+import { useSession } from "../../contexts/SessionContext";
+import { db } from "../../config/firebase";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 // styles
 import "./MainView.css";
@@ -28,11 +33,26 @@ const MainView = () => {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [scratchpadValue, setScratchpadValue] = useLocalStorage<string>(
-    "scratchpad",
-    "Welcome to Nout!\n\nThis is your scratchpad. You can write down quick notes here that won't be saved permanently.\n\nFeel free to type anything you want, and it will be saved automatically as you type.",
+    storageKeys.SCRATCHPAD,
+    DEFAULT_SCRATCHPAD_CONTENT,
   );
+  const [cloudScratchpadValue, setCloudScratchpadValue] = useState(
+    DEFAULT_SCRATCHPAD_CONTENT,
+  );
+  const [scratchpadLoading, setScratchpadLoading] = useState(false);
+  const scratchpadSeededRef = useRef(false);
+  const localScratchpadRef = useRef(scratchpadValue);
 
   const {
+    user,
+    loading: sessionLoading,
+    signIn,
+    signOut,
+    firebaseEnabled,
+  } = useSession();
+
+  const {
+    loading,
     notes,
     folders,
     addNote,
@@ -46,6 +66,72 @@ const MainView = () => {
     updateNoteText,
     hideNote,
   } = useNotes();
+
+  useEffect(() => {
+    localScratchpadRef.current = scratchpadValue;
+  }, [scratchpadValue]);
+
+  useEffect(() => {
+    scratchpadSeededRef.current = false;
+
+    if (!user || !db) {
+      setScratchpadLoading(false);
+      return;
+    }
+
+    let isCancelled = false;
+    const scratchpadRef = doc(db, "users", user.uid, "meta", "scratchpad");
+
+    const loadScratchpad = async () => {
+      setScratchpadLoading(true);
+      try {
+        const scratchpadSnapshot = await getDoc(scratchpadRef);
+        if (isCancelled) return;
+
+        if (scratchpadSnapshot.exists()) {
+          const cloudValue =
+            (scratchpadSnapshot.data() as { value?: string }).value ??
+            DEFAULT_SCRATCHPAD_CONTENT;
+          setCloudScratchpadValue(cloudValue);
+        } else {
+          const seedValue = localScratchpadRef.current;
+          setCloudScratchpadValue(seedValue);
+          await setDoc(scratchpadRef, { value: seedValue }, { merge: true });
+        }
+
+        scratchpadSeededRef.current = true;
+      } catch (error) {
+        console.error("Failed to load scratchpad", error);
+      } finally {
+        if (!isCancelled) {
+          setScratchpadLoading(false);
+        }
+      }
+    };
+
+    void loadScratchpad();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || !db || !scratchpadSeededRef.current) return;
+
+    const scratchpadRef = doc(db, "users", user.uid, "meta", "scratchpad");
+    const timer = window.setTimeout(() => {
+      void setDoc(
+        scratchpadRef,
+        { value: cloudScratchpadValue },
+        { merge: true },
+      );
+    }, 400);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [user, cloudScratchpadValue]);
 
   const selectInitialNote = useEffectEvent(
     (view = currentView, folderId = selectedFolderId) => {
@@ -79,7 +165,7 @@ const MainView = () => {
 
   useEffect(() => {
     selectInitialNote();
-  }, []);
+  }, [selectInitialNote]);
 
   const getSelectedNote = () => getNoteById(selectedNoteId || "") || null;
 
@@ -118,6 +204,7 @@ const MainView = () => {
   };
 
   const handleNewNote = () => {
+    if (loading) return;
     const noteId = addNote(currentView, selectedFolderId || undefined);
     setSelectedNoteId(noteId);
   };
@@ -146,6 +233,9 @@ const MainView = () => {
   const handleEditorChange = (value: string) => {
     if (currentView === selectedView.SCRATCHPAD) {
       setScratchpadValue(value);
+      if (user) {
+        setCloudScratchpadValue(value);
+      }
     } else if (selectedNoteId) {
       updateNoteText(selectedNoteId, value);
     }
@@ -153,7 +243,7 @@ const MainView = () => {
 
   const getEditorContent = () => {
     if (currentView === selectedView.SCRATCHPAD) {
-      return scratchpadValue;
+      return user ? cloudScratchpadValue : scratchpadValue;
     } else {
       const note = getSelectedNote();
       return note ? note.text : "";
@@ -181,6 +271,11 @@ const MainView = () => {
               currentView={currentView}
               selectedFolderId={selectedFolderId}
               folders={folders}
+              loading={loading || sessionLoading || scratchpadLoading}
+              cloudEnabled={firebaseEnabled}
+              cloudConnected={Boolean(user)}
+              onCloudSignIn={signIn}
+              onCloudSignOut={signOut}
               onViewChange={handleViewChange}
               onFolderSelect={handleFolderSelect}
               onAddFolder={handleClickOpen}
@@ -198,6 +293,7 @@ const MainView = () => {
             paddingX={0}
           >
             <FolderView
+              loading={loading}
               currentView={currentView}
               notes={notes}
               folders={folders}

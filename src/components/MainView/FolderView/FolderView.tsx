@@ -1,4 +1,4 @@
-import { Button, ListItem } from "@mui/material";
+import { Box, Button, ListItem, Skeleton } from "@mui/material";
 import { Delete as DeleteIcon } from "@mui/icons-material";
 import { selectedView, type SelectedView } from "../../../utils/selectedView";
 import CustomCard from "../../Card/Card";
@@ -11,6 +11,7 @@ interface Folder {
 }
 
 interface MiddlePanelProps {
+  loading: boolean;
   currentView: SelectedView;
   notes: Record<string, Note>;
   folders: Folder[];
@@ -26,6 +27,7 @@ interface MiddlePanelProps {
 }
 
 const FolderView = ({
+  loading,
   currentView,
   notes,
   folders,
@@ -39,6 +41,18 @@ const FolderView = ({
   onEmptyTrash,
   onHideNote,
 }: MiddlePanelProps) => {
+  if (loading) {
+    return (
+      <>
+        {Array.from({ length: 4 }).map((_, index) => (
+          <Box key={`notes-loading-${index}`} padding={1}>
+            <Skeleton variant="rounded" height={82} />
+          </Box>
+        ))}
+      </>
+    );
+  }
+
   return (
     <>
       {currentView === selectedView.NOTES &&

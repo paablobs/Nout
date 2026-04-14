@@ -18,7 +18,7 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import { alpha } from "@mui/material";
 
-import { DEFAULT_CATEGORY } from "../../hooks/useNotes";
+import { DEFAULT_CATEGORY } from "../../utils/constants";
 import "./Card.css";
 
 interface CustomCardProps {
