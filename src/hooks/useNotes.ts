@@ -14,7 +14,7 @@ import {
   setDoc,
   writeBatch,
 } from "firebase/firestore";
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useState } from "react";
 
 export interface Folder {
   id: string;
@@ -54,65 +54,6 @@ const useNotes = () => {
   const [cloudNotes, setCloudNotes] = useState<Record<string, Note>>({});
   const [loading, setLoading] = useState(false);
 
-  const loadCloudData = useEffectEvent(async (signal: AbortSignal) => {
-    if (!user || !db) {
-      setLoading(false);
-      return;
-    }
-
-    const cloudDb = db;
-    const userId = user.uid;
-    const foldersRef = collection(cloudDb, "users", userId, "folders");
-    const notesRef = collection(cloudDb, "users", userId, "notes");
-
-    setLoading(true);
-    try {
-      const [foldersSnapshot, notesSnapshot] = await Promise.all([
-        getDocs(foldersRef),
-        getDocs(notesRef),
-      ]);
-
-      if (signal.aborted) return;
-
-      const nextFolders = foldersSnapshot.docs.map(
-        (item) => item.data() as Folder,
-      );
-      const nextNotesList = notesSnapshot.docs.map(
-        (item) => item.data() as Note,
-      );
-
-      if (
-        nextFolders.length === 0 &&
-        nextNotesList.length === 0 &&
-        (localFolders.length > 0 || Object.keys(localNotes).length > 0)
-      ) {
-        const batch = writeBatch(cloudDb);
-        localFolders.forEach((folder) => {
-          batch.set(doc(foldersRef, folder.id), folder);
-        });
-        Object.values(localNotes).forEach((note) => {
-          batch.set(doc(notesRef, note.id), note);
-        });
-        await batch.commit();
-
-        if (signal.aborted) return;
-
-        setCloudFolders(localFolders);
-        setCloudNotes(localNotes);
-        return;
-      }
-
-      setCloudFolders(nextFolders);
-      setCloudNotes(toNotesRecord(nextNotesList));
-    } catch (error) {
-      console.error("Failed to load cloud notes", error);
-    } finally {
-      if (!signal.aborted) {
-        setLoading(false);
-      }
-    }
-  });
-
   useEffect(() => {
     if (!user || !db) {
       setLoading(false);
@@ -120,12 +61,65 @@ const useNotes = () => {
     }
 
     const controller = new AbortController();
-    void loadCloudData(controller.signal);
+    const cloudDb = db;
+    const userId = user.uid;
+
+    void (async () => {
+      const foldersRef = collection(cloudDb, "users", userId, "folders");
+      const notesRef = collection(cloudDb, "users", userId, "notes");
+
+      setLoading(true);
+      try {
+        const [foldersSnapshot, notesSnapshot] = await Promise.all([
+          getDocs(foldersRef),
+          getDocs(notesRef),
+        ]);
+
+        if (controller.signal.aborted) return;
+
+        const nextFolders = foldersSnapshot.docs.map(
+          (item) => item.data() as Folder,
+        );
+        const nextNotesList = notesSnapshot.docs.map(
+          (item) => item.data() as Note,
+        );
+
+        if (
+          nextFolders.length === 0 &&
+          nextNotesList.length === 0 &&
+          (localFolders.length > 0 || Object.keys(localNotes).length > 0)
+        ) {
+          const batch = writeBatch(cloudDb);
+          localFolders.forEach((folder) => {
+            batch.set(doc(foldersRef, folder.id), folder);
+          });
+          Object.values(localNotes).forEach((note) => {
+            batch.set(doc(notesRef, note.id), note);
+          });
+          await batch.commit();
+
+          if (controller.signal.aborted) return;
+
+          setCloudFolders(localFolders);
+          setCloudNotes(localNotes);
+          return;
+        }
+
+        setCloudFolders(nextFolders);
+        setCloudNotes(toNotesRecord(nextNotesList));
+      } catch (error) {
+        console.error("Failed to load cloud notes", error);
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    })();
 
     return () => {
       controller.abort();
     };
-  }, [user, loadCloudData]);
+  }, [user, localFolders, localNotes]);
 
   const folders = user ? cloudFolders : localFolders;
   const notes = user ? cloudNotes : localNotes;

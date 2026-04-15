@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // Components & Icons
 import { Grid } from "@mui/material";
@@ -83,6 +83,7 @@ const MainView = () => {
   );
   const [scratchpadLoading, setScratchpadLoading] = useState(false);
   const scratchpadSeededRef = useRef(false);
+  const localScratchpadRef = useRef(scratchpadValue);
 
   const {
     user,
@@ -108,43 +109,9 @@ const MainView = () => {
     hideNote,
   } = useNotes();
 
-  const loadScratchpad = useEffectEvent(async (signal: AbortSignal) => {
-    if (!user || !db) {
-      setScratchpadLoading(false);
-      return;
-    }
-
-    const scratchpadRef = doc(db, "users", user.uid, "meta", "scratchpad");
-
-    setScratchpadLoading(true);
-    try {
-      const scratchpadSnapshot = await getDoc(scratchpadRef);
-      if (signal.aborted) return;
-
-      if (scratchpadSnapshot.exists()) {
-        const cloudValue =
-          (scratchpadSnapshot.data() as { value?: string }).value ??
-          DEFAULT_SCRATCHPAD_CONTENT;
-        setCloudScratchpadValue(cloudValue);
-      } else {
-        setCloudScratchpadValue(scratchpadValue);
-        await setDoc(
-          scratchpadRef,
-          { value: scratchpadValue },
-          { merge: true },
-        );
-      }
-
-      if (signal.aborted) return;
-      scratchpadSeededRef.current = true;
-    } catch (error) {
-      console.error("Failed to load scratchpad", error);
-    } finally {
-      if (!signal.aborted) {
-        setScratchpadLoading(false);
-      }
-    }
-  });
+  useEffect(() => {
+    localScratchpadRef.current = scratchpadValue;
+  }, [scratchpadValue]);
 
   useEffect(() => {
     scratchpadSeededRef.current = false;
@@ -155,12 +122,47 @@ const MainView = () => {
     }
 
     const controller = new AbortController();
-    void loadScratchpad(controller.signal);
+    const cloudDb = db;
+    const userId = user.uid;
+
+    void (async () => {
+      const scratchpadRef = doc(cloudDb, "users", userId, "meta", "scratchpad");
+
+      setScratchpadLoading(true);
+      try {
+        const scratchpadSnapshot = await getDoc(scratchpadRef);
+        if (controller.signal.aborted) return;
+
+        if (scratchpadSnapshot.exists()) {
+          const cloudValue =
+            (scratchpadSnapshot.data() as { value?: string }).value ??
+            DEFAULT_SCRATCHPAD_CONTENT;
+          setCloudScratchpadValue(cloudValue);
+        } else {
+          const fallbackValue = localScratchpadRef.current;
+          setCloudScratchpadValue(fallbackValue);
+          await setDoc(
+            scratchpadRef,
+            { value: fallbackValue },
+            { merge: true },
+          );
+        }
+
+        if (controller.signal.aborted) return;
+        scratchpadSeededRef.current = true;
+      } catch (error) {
+        console.error("Failed to load scratchpad", error);
+      } finally {
+        if (!controller.signal.aborted) {
+          setScratchpadLoading(false);
+        }
+      }
+    })();
 
     return () => {
       controller.abort();
     };
-  }, [user, loadScratchpad]);
+  }, [user]);
 
   useEffect(() => {
     if (!user || !db || !scratchpadSeededRef.current) return;
