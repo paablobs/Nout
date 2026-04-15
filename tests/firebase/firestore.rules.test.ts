@@ -4,8 +4,8 @@ import {
   assertFails,
   assertSucceeds,
   initializeTestEnvironment,
-  RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
+import type { RulesTestEnvironment } from "@firebase/rules-unit-testing";
 
 describe("Firestore security rules", () => {
   let testEnv: RulesTestEnvironment;
