@@ -14,7 +14,7 @@ import {
   setDoc,
   writeBatch,
 } from "firebase/firestore";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 
 export interface Folder {
   id: string;
@@ -54,18 +54,7 @@ const useNotes = () => {
   const [cloudNotes, setCloudNotes] = useState<Record<string, Note>>({});
   const [loading, setLoading] = useState(false);
 
-  const localFoldersRef = useRef(localFolders);
-  const localNotesRef = useRef(localNotes);
-
-  useEffect(() => {
-    localFoldersRef.current = localFolders;
-  }, [localFolders]);
-
-  useEffect(() => {
-    localNotesRef.current = localNotes;
-  }, [localNotes]);
-
-  useEffect(() => {
+  const loadCloudData = useEffectEvent(async (signal: AbortSignal) => {
     if (!user || !db) {
       setLoading(false);
       return;
@@ -73,68 +62,70 @@ const useNotes = () => {
 
     const cloudDb = db;
     const userId = user.uid;
-
     const foldersRef = collection(cloudDb, "users", userId, "folders");
     const notesRef = collection(cloudDb, "users", userId, "notes");
 
-    let isCancelled = false;
+    setLoading(true);
+    try {
+      const [foldersSnapshot, notesSnapshot] = await Promise.all([
+        getDocs(foldersRef),
+        getDocs(notesRef),
+      ]);
 
-    const loadCloudData = async () => {
-      setLoading(true);
-      try {
-        const [foldersSnapshot, notesSnapshot] = await Promise.all([
-          getDocs(foldersRef),
-          getDocs(notesRef),
-        ]);
+      if (signal.aborted) return;
 
-        const nextFolders = foldersSnapshot.docs.map(
-          (item) => item.data() as Folder,
-        );
-        const nextNotesList = notesSnapshot.docs.map(
-          (item) => item.data() as Note,
-        );
+      const nextFolders = foldersSnapshot.docs.map(
+        (item) => item.data() as Folder,
+      );
+      const nextNotesList = notesSnapshot.docs.map(
+        (item) => item.data() as Note,
+      );
 
-        if (
-          nextFolders.length === 0 &&
-          nextNotesList.length === 0 &&
-          (localFoldersRef.current.length > 0 ||
-            Object.keys(localNotesRef.current).length > 0)
-        ) {
-          const batch = writeBatch(cloudDb);
-          localFoldersRef.current.forEach((folder) => {
-            batch.set(doc(foldersRef, folder.id), folder);
-          });
-          Object.values(localNotesRef.current).forEach((note) => {
-            batch.set(doc(notesRef, note.id), note);
-          });
-          await batch.commit();
+      if (
+        nextFolders.length === 0 &&
+        nextNotesList.length === 0 &&
+        (localFolders.length > 0 || Object.keys(localNotes).length > 0)
+      ) {
+        const batch = writeBatch(cloudDb);
+        localFolders.forEach((folder) => {
+          batch.set(doc(foldersRef, folder.id), folder);
+        });
+        Object.values(localNotes).forEach((note) => {
+          batch.set(doc(notesRef, note.id), note);
+        });
+        await batch.commit();
 
-          if (!isCancelled) {
-            setCloudFolders(localFoldersRef.current);
-            setCloudNotes(localNotesRef.current);
-          }
-          return;
-        }
+        if (signal.aborted) return;
 
-        if (!isCancelled) {
-          setCloudFolders(nextFolders);
-          setCloudNotes(toNotesRecord(nextNotesList));
-        }
-      } catch (error) {
-        console.error("Failed to load cloud notes", error);
-      } finally {
-        if (!isCancelled) {
-          setLoading(false);
-        }
+        setCloudFolders(localFolders);
+        setCloudNotes(localNotes);
+        return;
       }
-    };
 
-    void loadCloudData();
+      setCloudFolders(nextFolders);
+      setCloudNotes(toNotesRecord(nextNotesList));
+    } catch (error) {
+      console.error("Failed to load cloud notes", error);
+    } finally {
+      if (!signal.aborted) {
+        setLoading(false);
+      }
+    }
+  });
+
+  useEffect(() => {
+    if (!user || !db) {
+      setLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    void loadCloudData(controller.signal);
 
     return () => {
-      isCancelled = true;
+      controller.abort();
     };
-  }, [user]);
+  }, [user, loadCloudData]);
 
   const folders = user ? cloudFolders : localFolders;
   const notes = user ? cloudNotes : localNotes;
