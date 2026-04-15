@@ -13,7 +13,7 @@ import DeleteFolderDialog from "./DeleteFolderDialog/DeleteFolderDialog";
 import EmptyTrashDialog from "./EmptyTrashDialog/EmptyTrashDialog";
 import Sidebar from "./Sidebar/Sidebar";
 import FolderView from "./FolderView/FolderView";
-import useNotes, { type Folder } from "../../hooks/useNotes";
+import useNotes, { type Folder, type Note } from "../../hooks/useNotes";
 import { DEFAULT_SCRATCHPAD_CONTENT } from "../../utils/constants";
 import { useSession } from "../../contexts/SessionContext";
 import { db } from "../../config/firebase";
@@ -21,6 +21,48 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 
 // styles
 import "./MainView.css";
+
+const isNoteVisibleInView = (
+  note: Note | null,
+  view: SelectedView,
+  folderId: string | null,
+) => {
+  if (!note) return false;
+
+  if (view === selectedView.NOTES) {
+    return !note.isTrash && !note.isHidden;
+  }
+
+  if (view === selectedView.FAVORITES) {
+    return note.isFav && !note.isTrash && !note.isHidden;
+  }
+
+  if (view === selectedView.TRASH) {
+    return note.isTrash;
+  }
+
+  if (view === selectedView.FOLDERS) {
+    return note.folderId === folderId && !note.isTrash;
+  }
+
+  return false;
+};
+
+const getFirstSelectableNoteId = (
+  notes: Record<string, Note>,
+  view: SelectedView,
+  folderId: string | null,
+) => {
+  if (view === selectedView.SCRATCHPAD) {
+    return null;
+  }
+
+  return (
+    Object.values(notes).find((note) =>
+      isNoteVisibleInView(note, view, folderId),
+    )?.id ?? null
+  );
+};
 
 const MainView = () => {
   const [openCreateFolderDialog, setOpenCreateFolderDialog] = useState(false);
@@ -137,39 +179,31 @@ const MainView = () => {
     };
   }, [user, cloudScratchpadValue]);
 
-  const selectInitialNote = useEffectEvent(
-    (view = currentView, folderId = selectedFolderId) => {
-      if (view === selectedView.SCRATCHPAD) {
-        setSelectedNoteId(null);
-      } else if (view === selectedView.NOTES) {
-        setSelectedNoteId(
-          Object.keys(notes).find((id) => !notes[id].isTrash) || null,
-        );
-      } else if (view === selectedView.FAVORITES) {
-        setSelectedNoteId(
-          Object.keys(notes).find(
-            (id) => notes[id].isFav && !notes[id].isTrash,
-          ) || null,
-        );
-      } else if (view === selectedView.TRASH) {
-        setSelectedNoteId(
-          Object.keys(notes).find((id) => notes[id].isTrash) || null,
-        );
-      } else if (view === selectedView.FOLDERS && folderId) {
-        const firstFolderNoteId = Object.keys(notes).find(
-          (id) => notes[id].folderId === folderId && !notes[id].isTrash,
-        );
-        const firstFolderNote = firstFolderNoteId
-          ? notes[firstFolderNoteId]
-          : null;
-        setSelectedNoteId(firstFolderNote ? firstFolderNote.id : null);
-      }
-    },
-  );
-
   useEffect(() => {
-    selectInitialNote();
-  }, [selectInitialNote]);
+    if (currentView === selectedView.SCRATCHPAD) {
+      if (selectedNoteId !== null) {
+        setSelectedNoteId(null);
+      }
+      return;
+    }
+
+    const selectedNote = selectedNoteId
+      ? (notes[selectedNoteId] ?? null)
+      : null;
+    if (isNoteVisibleInView(selectedNote, currentView, selectedFolderId)) {
+      return;
+    }
+
+    const nextSelectedNoteId = getFirstSelectableNoteId(
+      notes,
+      currentView,
+      selectedFolderId,
+    );
+
+    if (nextSelectedNoteId !== selectedNoteId) {
+      setSelectedNoteId(nextSelectedNoteId);
+    }
+  }, [currentView, selectedFolderId, selectedNoteId, notes]);
 
   const getSelectedNote = () => getNoteById(selectedNoteId || "") || null;
 
@@ -256,14 +290,10 @@ const MainView = () => {
 
   const handleViewChange = (view: SelectedView) => {
     setCurrentView(view);
-    if (view !== selectedView.FOLDERS) {
-      selectInitialNote(view);
-    }
   };
 
   const handleFolderSelect = (folderId: string) => {
     setSelectedFolderId(folderId);
-    selectInitialNote(selectedView.FOLDERS, folderId);
   };
 
   return (
