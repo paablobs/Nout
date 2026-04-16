@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 // Components & Icons
 import { Grid } from "@mui/material";
@@ -83,7 +83,6 @@ const MainView = () => {
   );
   const [scratchpadLoading, setScratchpadLoading] = useState(false);
   const scratchpadSeededRef = useRef(false);
-  const localScratchpadRef = useRef(scratchpadValue);
 
   const {
     user,
@@ -109,9 +108,12 @@ const MainView = () => {
     hideNote,
   } = useNotes();
 
-  useEffect(() => {
-    localScratchpadRef.current = scratchpadValue;
-  }, [scratchpadValue]);
+  const seedLocalScratchpad = useEffectEvent(
+    async (scratchpadRef: ReturnType<typeof doc>) => {
+      setCloudScratchpadValue(scratchpadValue);
+      await setDoc(scratchpadRef, { value: scratchpadValue }, { merge: true });
+    },
+  );
 
   useEffect(() => {
     scratchpadSeededRef.current = false;
@@ -139,13 +141,7 @@ const MainView = () => {
             DEFAULT_SCRATCHPAD_CONTENT;
           setCloudScratchpadValue(cloudValue);
         } else {
-          const fallbackValue = localScratchpadRef.current;
-          setCloudScratchpadValue(fallbackValue);
-          await setDoc(
-            scratchpadRef,
-            { value: fallbackValue },
-            { merge: true },
-          );
+          await seedLocalScratchpad(scratchpadRef);
         }
 
         if (controller.signal.aborted) return;
@@ -181,33 +177,23 @@ const MainView = () => {
     };
   }, [user, cloudScratchpadValue]);
 
-  useEffect(() => {
+  const effectiveSelectedNoteId = (() => {
     if (currentView === selectedView.SCRATCHPAD) {
-      if (selectedNoteId !== null) {
-        setSelectedNoteId(null);
-      }
-      return;
+      return null;
     }
 
     const selectedNote = selectedNoteId
       ? (notes[selectedNoteId] ?? null)
       : null;
     if (isNoteVisibleInView(selectedNote, currentView, selectedFolderId)) {
-      return;
+      return selectedNoteId;
     }
 
-    const nextSelectedNoteId = getFirstSelectableNoteId(
-      notes,
-      currentView,
-      selectedFolderId,
-    );
+    return getFirstSelectableNoteId(notes, currentView, selectedFolderId);
+  })();
 
-    if (nextSelectedNoteId !== selectedNoteId) {
-      setSelectedNoteId(nextSelectedNoteId);
-    }
-  }, [currentView, selectedFolderId, selectedNoteId, notes]);
-
-  const getSelectedNote = () => getNoteById(selectedNoteId || "") || null;
+  const getSelectedNote = () =>
+    getNoteById(effectiveSelectedNoteId || "") || null;
 
   const handleClickOpen = () => {
     setOpenCreateFolderDialog(true);
@@ -276,8 +262,8 @@ const MainView = () => {
       if (user) {
         setCloudScratchpadValue(value);
       }
-    } else if (selectedNoteId) {
-      updateNoteText(selectedNoteId, value);
+    } else if (effectiveSelectedNoteId) {
+      updateNoteText(effectiveSelectedNoteId, value);
     }
   };
 
@@ -334,7 +320,7 @@ const MainView = () => {
               notes={notes}
               folders={folders}
               selectedFolderId={selectedFolderId}
-              selectedNoteId={selectedNoteId}
+              selectedNoteId={effectiveSelectedNoteId}
               onFavNote={handleFavNote}
               onTrashNote={handleTrashNote}
               onMoveNoteToFolder={handleMoveNoteToFolder}
@@ -345,13 +331,14 @@ const MainView = () => {
             />
           </Grid>
         )}
-        {(selectedNoteId || currentView === selectedView.SCRATCHPAD) && (
+        {(effectiveSelectedNoteId ||
+          currentView === selectedView.SCRATCHPAD) && (
           <Grid size="grow" className="mainView__rightPanel">
             <Tiptap
               content={getEditorContent()}
               onChange={handleEditorChange}
               editable={currentView !== selectedView.TRASH}
-              key={selectedNoteId || selectedView.SCRATCHPAD}
+              key={effectiveSelectedNoteId || selectedView.SCRATCHPAD}
             />
           </Grid>
         )}

@@ -38,7 +38,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react-swc": "^3.9.0",
     "eslint": "^9.25.0",
-    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-hooks": "^6.1.1",
     "eslint-plugin-react-refresh": "^0.4.19",
     "eslint-plugin-storybook": "^9.0.8",
     "firebase-tools": "^15.14.0",

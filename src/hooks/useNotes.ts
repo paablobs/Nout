@@ -10,11 +10,12 @@ import {
   collection,
   deleteDoc,
   doc,
+  type Firestore,
   getDocs,
   setDoc,
   writeBatch,
 } from "firebase/firestore";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 
 export interface Folder {
   id: string;
@@ -54,6 +55,31 @@ const useNotes = () => {
   const [cloudNotes, setCloudNotes] = useState<Record<string, Note>>({});
   const [loading, setLoading] = useState(false);
 
+  const seedLocalDataToCloud = useEffectEvent(
+    async (
+      cloudDb: Firestore,
+      foldersRef: ReturnType<typeof collection>,
+      notesRef: ReturnType<typeof collection>,
+    ) => {
+      if (localFolders.length === 0 && Object.keys(localNotes).length === 0) {
+        return false;
+      }
+
+      const batch = writeBatch(cloudDb);
+      localFolders.forEach((folder) => {
+        batch.set(doc(foldersRef, folder.id), folder);
+      });
+      Object.values(localNotes).forEach((note) => {
+        batch.set(doc(notesRef, note.id), note);
+      });
+      await batch.commit();
+
+      setCloudFolders(localFolders);
+      setCloudNotes(localNotes);
+      return true;
+    },
+  );
+
   useEffect(() => {
     if (!user || !db) {
       setLoading(false);
@@ -84,25 +110,18 @@ const useNotes = () => {
           (item) => item.data() as Note,
         );
 
-        if (
-          nextFolders.length === 0 &&
-          nextNotesList.length === 0 &&
-          (localFolders.length > 0 || Object.keys(localNotes).length > 0)
-        ) {
-          const batch = writeBatch(cloudDb);
-          localFolders.forEach((folder) => {
-            batch.set(doc(foldersRef, folder.id), folder);
-          });
-          Object.values(localNotes).forEach((note) => {
-            batch.set(doc(notesRef, note.id), note);
-          });
-          await batch.commit();
+        if (nextFolders.length === 0 && nextNotesList.length === 0) {
+          const didSeed = await seedLocalDataToCloud(
+            cloudDb,
+            foldersRef,
+            notesRef,
+          );
 
           if (controller.signal.aborted) return;
 
-          setCloudFolders(localFolders);
-          setCloudNotes(localNotes);
-          return;
+          if (didSeed) {
+            return;
+          }
         }
 
         setCloudFolders(nextFolders);
@@ -119,7 +138,7 @@ const useNotes = () => {
     return () => {
       controller.abort();
     };
-  }, [user, localFolders, localNotes]);
+  }, [user]);
 
   const folders = user ? cloudFolders : localFolders;
   const notes = user ? cloudNotes : localNotes;
