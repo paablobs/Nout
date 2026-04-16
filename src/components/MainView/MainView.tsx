@@ -258,9 +258,10 @@ const MainView = () => {
 
   const handleEditorChange = (value: string) => {
     if (currentView === selectedView.SCRATCHPAD) {
-      setScratchpadValue(value);
       if (user) {
         setCloudScratchpadValue(value);
+      } else {
+        setScratchpadValue(value);
       }
     } else if (effectiveSelectedNoteId) {
       updateNoteText(effectiveSelectedNoteId, value);
