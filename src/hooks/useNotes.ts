@@ -226,12 +226,24 @@ const useNotes = () => {
       setCloudFolders((prev) => prev.filter((folder) => folder.id !== id));
       setCloudNotes(updatedNotes);
 
+      const affectedNoteIds = Object.entries(notes)
+        .filter(([, note]) => note.folderId === id)
+        .map(([noteId]) => noteId);
+
       void (async () => {
         try {
           await deleteDoc(doc(cloudDb, "users", userId, "folders", id));
           const batch = writeBatch(cloudDb);
-          Object.values(updatedNotes).forEach((note) => {
-            batch.set(doc(cloudDb, "users", userId, "notes", note.id), note);
+          affectedNoteIds.forEach((noteId) => {
+            const note = updatedNotes[noteId];
+            if (note) {
+              const noteData = { ...note };
+              delete noteData.folderId;
+              batch.set(
+                doc(cloudDb, "users", userId, "notes", noteId),
+                noteData,
+              );
+            }
           });
           await batch.commit();
         } catch (error) {
@@ -273,7 +285,11 @@ const useNotes = () => {
       };
       if (user) {
         setCloudNotes((prev) => ({ ...prev, [noteId]: updatedNote }));
-        void upsertCloudNote(updatedNote).catch((error) => {
+        const noteData = { ...updatedNote };
+        if (noteData.folderId === undefined) {
+          delete noteData.folderId;
+        }
+        void upsertCloudNote(noteData).catch((error) => {
           console.error("Failed to move note to folder", error);
         });
       } else {
@@ -345,7 +361,11 @@ const useNotes = () => {
       const restoredNote = { ...note, isTrash: false, isHidden: false };
       if (user) {
         setCloudNotes((prev) => ({ ...prev, [id]: restoredNote }));
-        void upsertCloudNote(restoredNote).catch((error) => {
+        const noteData = { ...restoredNote };
+        if (noteData.folderId === undefined) {
+          delete noteData.folderId;
+        }
+        void upsertCloudNote(noteData).catch((error) => {
           console.error("Failed to restore note", error);
         });
       } else {
