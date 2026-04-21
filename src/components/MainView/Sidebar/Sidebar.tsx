@@ -186,9 +186,10 @@ const Sidebar = ({
           ))}
         </List>
       </Grid>
-      <Grid size="auto" marginBottom={1}>
+      <Grid size="auto" marginBottom={1} padding={2}>
         <Button
           fullWidth
+          color="info"
           variant="outlined"
           disabled={!cloudEnabled || loading}
           onClick={() => {
