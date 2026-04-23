@@ -9,6 +9,7 @@ import {
   Button,
   Grid,
   Skeleton,
+  Typography,
 } from "@mui/material";
 import {
   DashboardCustomizeOutlined as DashboardCustomizeIcon,
@@ -38,6 +39,7 @@ interface LeftPanelProps {
   loading: boolean;
   cloudEnabled: boolean;
   cloudConnected: boolean;
+  signedInEmail: string | null;
   onCloudSignIn: () => Promise<void>;
   onCloudSignOut: () => Promise<void>;
   onViewChange: (view: SelectedView) => void;
@@ -54,6 +56,7 @@ const Sidebar = ({
   loading,
   cloudEnabled,
   cloudConnected,
+  signedInEmail,
   onCloudSignIn,
   onCloudSignOut,
   onViewChange,
@@ -195,7 +198,21 @@ const Sidebar = ({
           )}
         </List>
       </Grid>
-      <Grid size="auto" marginBottom={1} padding={2}>
+      <Grid
+        size="auto"
+        marginBottom={1}
+        padding={2}
+        style={{
+          alignItems: "center",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {cloudConnected && signedInEmail && (
+          <Typography variant="body2" color="text.secondary" marginBottom={1}>
+            Signed as: {signedInEmail}
+          </Typography>
+        )}
         <Button
           fullWidth
           color="info"

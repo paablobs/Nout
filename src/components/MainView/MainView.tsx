@@ -297,6 +297,7 @@ const MainView = () => {
               loading={loading || sessionLoading || scratchpadLoading}
               cloudEnabled={firebaseEnabled}
               cloudConnected={Boolean(user)}
+              signedInEmail={user?.email ?? null}
               onCloudSignIn={signIn}
               onCloudSignOut={signOut}
               onViewChange={handleViewChange}
