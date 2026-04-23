@@ -8,6 +8,7 @@ import {
   Divider,
   Button,
   Grid,
+  Skeleton,
 } from "@mui/material";
 import {
   DashboardCustomizeOutlined as DashboardCustomizeIcon,
@@ -153,37 +154,45 @@ const Sidebar = ({
       </Grid>
       <Grid size="grow" overflow={"auto"} sx={{ scrollbarGutter: "stable" }}>
         <List>
-          {folders.map((folder) => (
-            <ListItem
-              key={folder.id}
-              disablePadding
-              secondaryAction={
-                <IconButton
-                  edge="end"
-                  onClick={() => onDeleteFolder(folder)}
-                  aria-label="delete-folder"
-                >
-                  <ClearIcon />
-                </IconButton>
-              }
-            >
-              <ListItemButton
-                selected={
-                  currentView === selectedView.FOLDERS &&
-                  selectedFolderId === folder.id
-                }
-                onClick={() => {
-                  onViewChange(selectedView.FOLDERS);
-                  onFolderSelect(folder.id);
-                }}
-              >
-                <ListItemIcon>
-                  <FolderIcon sx={{ color: folder.color ?? yellow[500] }} />
-                </ListItemIcon>
-                <ListItemText primary={folder.name} />
-              </ListItemButton>
+          {loading ? (
+            <ListItem disablePadding>
+              <div style={{ width: "100%", padding: "8px" }}>
+                <Skeleton variant="rounded" height={48} />
+              </div>
             </ListItem>
-          ))}
+          ) : (
+            folders.map((folder) => (
+              <ListItem
+                key={folder.id}
+                disablePadding
+                secondaryAction={
+                  <IconButton
+                    edge="end"
+                    onClick={() => onDeleteFolder(folder)}
+                    aria-label="delete-folder"
+                  >
+                    <ClearIcon />
+                  </IconButton>
+                }
+              >
+                <ListItemButton
+                  selected={
+                    currentView === selectedView.FOLDERS &&
+                    selectedFolderId === folder.id
+                  }
+                  onClick={() => {
+                    onViewChange(selectedView.FOLDERS);
+                    onFolderSelect(folder.id);
+                  }}
+                >
+                  <ListItemIcon>
+                    <FolderIcon sx={{ color: folder.color ?? yellow[500] }} />
+                  </ListItemIcon>
+                  <ListItemText primary={folder.name} />
+                </ListItemButton>
+              </ListItem>
+            ))
+          )}
         </List>
       </Grid>
       <Grid size="auto" marginBottom={1} padding={2}>

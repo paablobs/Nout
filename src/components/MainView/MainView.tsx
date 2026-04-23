@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 // Components & Icons
-import { Grid } from "@mui/material";
+import { Grid, Skeleton } from "@mui/material";
 
 // Custom Hooks & Styles & Components
 import { useLocalStorage } from "../../hooks/useLocalStorage";
@@ -335,12 +335,16 @@ const MainView = () => {
         {(effectiveSelectedNoteId ||
           currentView === selectedView.SCRATCHPAD) && (
           <Grid size="grow" className="mainView__rightPanel">
-            <Tiptap
-              content={getEditorContent()}
-              onChange={handleEditorChange}
-              editable={currentView !== selectedView.TRASH}
-              key={effectiveSelectedNoteId || selectedView.SCRATCHPAD}
-            />
+            {loading ? (
+              <Skeleton variant="rectangular" width="100%" height="100%" />
+            ) : (
+              <Tiptap
+                content={getEditorContent()}
+                onChange={handleEditorChange}
+                editable={currentView !== selectedView.TRASH}
+                key={effectiveSelectedNoteId || selectedView.SCRATCHPAD}
+              />
+            )}
           </Grid>
         )}
       </Grid>
