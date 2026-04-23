@@ -21,6 +21,7 @@ interface SessionContextValue {
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
+const LOADING_FEEDBACK_DELAY_MS = 300;
 
 export const SessionProvider = ({ children }: PropsWithChildren) => {
   const [user, setUser] = useState<User | null>(null);
@@ -58,6 +59,9 @@ export const SessionProvider = ({ children }: PropsWithChildren) => {
         if (!auth) return;
         setLoading(true);
         try {
+          await new Promise<void>((resolve) => {
+            window.setTimeout(resolve, LOADING_FEEDBACK_DELAY_MS);
+          });
           await signOut(auth);
         } finally {
           setLoading(false);
