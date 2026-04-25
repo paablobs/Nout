@@ -25,6 +25,7 @@ import {
 import { yellow } from "@mui/material/colors";
 
 import { selectedView, type SelectedView } from "../../../utils/selectedView";
+import { DEFAULT_CATEGORY } from "../../../utils/constants";
 
 interface Folder {
   id: string;
@@ -119,7 +120,7 @@ const Sidebar = ({
               <ListItemIcon>
                 <NotesIcon />
               </ListItemIcon>
-              <ListItemText primary="All notes" />
+              <ListItemText primary={DEFAULT_CATEGORY} />
             </ListItemButton>
           </ListItem>
           <ListItem disablePadding>

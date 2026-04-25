@@ -18,7 +18,11 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import { alpha } from "@mui/material";
 
-import { DEFAULT_CATEGORY } from "../../utils/constants";
+import {
+  DEFAULT_CATEGORY,
+  isDefaultCategory,
+  toDisplayCategory,
+} from "../../utils/constants";
 import "./Card.css";
 
 interface CustomCardProps {
@@ -151,7 +155,7 @@ const CustomCard = ({
             {getFirstLine(text)}
           </Typography>
           <Typography variant="body2" className="box__text">
-            {category}
+            {toDisplayCategory(category)}
           </Typography>
         </CardContent>
         <CardActions>
@@ -165,7 +169,7 @@ const CustomCard = ({
                 )}
               </IconButton>
               {moveToFolderPopup()}
-              {category !== DEFAULT_CATEGORY ? hideFromAllNotesPopup() : null}
+              {!isDefaultCategory(category) ? hideFromAllNotesPopup() : null}
               <IconButton
                 onClick={
                   onTrash

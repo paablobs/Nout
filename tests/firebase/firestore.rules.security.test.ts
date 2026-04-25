@@ -24,7 +24,7 @@ import type { RulesTestEnvironment } from "@firebase/rules-unit-testing";
 const VALID_NOTE = {
   id: "n1",
   text: "hello",
-  category: "All notes",
+  category: "Notes",
   isFav: false,
   isTrash: false,
   isHidden: false,
@@ -384,7 +384,7 @@ describe("Firestore aggressive security tests", () => {
       await assertFails(
         aliceDb()
           .doc("users/alice/notes/n1")
-          .set({ ...VALID_NOTE, category: ["All notes"] }),
+          .set({ ...VALID_NOTE, category: ["Notes"] }),
       );
     });
 

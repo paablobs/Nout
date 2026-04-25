@@ -43,7 +43,7 @@ describe("Firestore security rules", () => {
       ref.set({
         id: "n1",
         text: "hola",
-        category: "All notes",
+        category: "Notes",
         isFav: false,
         isTrash: false,
         isHidden: false,
@@ -59,7 +59,7 @@ describe("Firestore security rules", () => {
       ref.set({
         id: "n1",
         text: "first note",
-        category: "All notes",
+        category: "Notes",
         isFav: false,
         isTrash: false,
         isHidden: false,
@@ -77,7 +77,7 @@ describe("Firestore security rules", () => {
       ref.set({
         id: "n1",
         text: 10,
-        category: "All notes",
+        category: "Notes",
         isFav: false,
         isTrash: false,
         isHidden: false,
@@ -88,7 +88,7 @@ describe("Firestore security rules", () => {
       ref.set({
         id: "n1",
         text: "ok",
-        category: "All notes",
+        category: "Notes",
         isFav: false,
         isTrash: false,
         isHidden: false,
@@ -103,7 +103,7 @@ describe("Firestore security rules", () => {
       await seedDb.doc("users/alice/notes/n1").set({
         id: "n1",
         text: "private",
-        category: "All notes",
+        category: "Notes",
         isFav: false,
         isTrash: false,
         isHidden: false,
@@ -118,7 +118,7 @@ describe("Firestore security rules", () => {
       aliceRef.set({
         id: "n1",
         text: "hacked",
-        category: "All notes",
+        category: "Notes",
         isFav: false,
         isTrash: false,
         isHidden: false,
