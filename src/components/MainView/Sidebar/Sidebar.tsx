@@ -8,6 +8,8 @@ import {
   Divider,
   Button,
   Grid,
+  Skeleton,
+  Typography,
 } from "@mui/material";
 import {
   DashboardCustomizeOutlined as DashboardCustomizeIcon,
@@ -34,6 +36,12 @@ interface LeftPanelProps {
   currentView: SelectedView;
   selectedFolderId: string | null;
   folders: Folder[];
+  loading: boolean;
+  cloudEnabled: boolean;
+  cloudConnected: boolean;
+  signedInEmail: string | null;
+  onCloudSignIn: () => Promise<void>;
+  onCloudSignOut: () => Promise<void>;
   onViewChange: (view: SelectedView) => void;
   onFolderSelect: (folderId: string) => void;
   onAddFolder: () => void;
@@ -45,6 +53,12 @@ const Sidebar = ({
   currentView,
   selectedFolderId,
   folders,
+  loading,
+  cloudEnabled,
+  cloudConnected,
+  signedInEmail,
+  onCloudSignIn,
+  onCloudSignOut,
   onViewChange,
   onFolderSelect,
   onAddFolder,
@@ -74,6 +88,7 @@ const Sidebar = ({
                   variant="contained"
                   color="secondary"
                   onClick={onNewNote}
+                  disabled={loading}
                   sx={{
                     aspectRatio: "1 / 1",
                     minWidth: 0,
@@ -142,38 +157,81 @@ const Sidebar = ({
       </Grid>
       <Grid size="grow" overflow={"auto"} sx={{ scrollbarGutter: "stable" }}>
         <List>
-          {folders.map((folder) => (
-            <ListItem
-              key={folder.id}
-              disablePadding
-              secondaryAction={
-                <IconButton
-                  edge="end"
-                  onClick={() => onDeleteFolder(folder)}
-                  aria-label="delete-folder"
-                >
-                  <ClearIcon />
-                </IconButton>
-              }
-            >
-              <ListItemButton
-                selected={
-                  currentView === selectedView.FOLDERS &&
-                  selectedFolderId === folder.id
-                }
-                onClick={() => {
-                  onViewChange(selectedView.FOLDERS);
-                  onFolderSelect(folder.id);
-                }}
-              >
-                <ListItemIcon>
-                  <FolderIcon sx={{ color: folder.color ?? yellow[500] }} />
-                </ListItemIcon>
-                <ListItemText primary={folder.name} />
-              </ListItemButton>
+          {loading ? (
+            <ListItem disablePadding>
+              <div style={{ width: "100%", padding: "8px" }}>
+                <Skeleton variant="rounded" height={48} />
+              </div>
             </ListItem>
-          ))}
+          ) : (
+            folders.map((folder) => (
+              <ListItem
+                key={folder.id}
+                disablePadding
+                secondaryAction={
+                  <IconButton
+                    edge="end"
+                    onClick={() => onDeleteFolder(folder)}
+                    aria-label="delete-folder"
+                  >
+                    <ClearIcon />
+                  </IconButton>
+                }
+              >
+                <ListItemButton
+                  selected={
+                    currentView === selectedView.FOLDERS &&
+                    selectedFolderId === folder.id
+                  }
+                  onClick={() => {
+                    onViewChange(selectedView.FOLDERS);
+                    onFolderSelect(folder.id);
+                  }}
+                >
+                  <ListItemIcon>
+                    <FolderIcon sx={{ color: folder.color ?? yellow[500] }} />
+                  </ListItemIcon>
+                  <ListItemText primary={folder.name} />
+                </ListItemButton>
+              </ListItem>
+            ))
+          )}
         </List>
+      </Grid>
+      <Grid
+        size="auto"
+        marginBottom={1}
+        padding={2}
+        style={{
+          alignItems: "center",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {cloudConnected && signedInEmail && (
+          <Typography variant="body2" color="text.secondary" marginBottom={1}>
+            Signed as: {signedInEmail}
+          </Typography>
+        )}
+        <Button
+          fullWidth
+          color="info"
+          variant="outlined"
+          disabled={!cloudEnabled || loading}
+          onClick={() => {
+            if (cloudConnected) {
+              void onCloudSignOut();
+            } else {
+              void onCloudSignIn();
+            }
+          }}
+        >
+          {!cloudEnabled
+            ? "Cloud disabled"
+            : cloudConnected
+              ? "Sign out from Google"
+              : "Sign in with Google"}
+        </Button>
       </Grid>
     </Grid>
   );

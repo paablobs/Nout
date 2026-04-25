@@ -1,21 +1,68 @@
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 // Components & Icons
-import { Grid } from "@mui/material";
+import { Grid, Skeleton } from "@mui/material";
 
 // Custom Hooks & Styles & Components
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import { selectedView, type SelectedView } from "../../utils/selectedView";
+import { storageKeys } from "../../utils/storageKeys";
 import Tiptap from "../TextEditor/TipTap";
 import CreateFolderDialog from "./CreateFolderDialog/CreateFolderDialog";
 import DeleteFolderDialog from "./DeleteFolderDialog/DeleteFolderDialog";
 import EmptyTrashDialog from "./EmptyTrashDialog/EmptyTrashDialog";
 import Sidebar from "./Sidebar/Sidebar";
 import FolderView from "./FolderView/FolderView";
-import useNotes, { type Folder } from "../../hooks/useNotes";
+import useNotes, { type Folder, type Note } from "../../hooks/useNotes";
+import { DEFAULT_SCRATCHPAD_CONTENT } from "../../utils/constants";
+import { useSession } from "../../contexts/SessionContext";
+import { db } from "../../config/firebase";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 // styles
 import "./MainView.css";
+
+const isNoteVisibleInView = (
+  note: Note | null,
+  view: SelectedView,
+  folderId: string | null,
+) => {
+  if (!note) return false;
+
+  if (view === selectedView.NOTES) {
+    return !note.isTrash && !note.isHidden;
+  }
+
+  if (view === selectedView.FAVORITES) {
+    return note.isFav && !note.isTrash && !note.isHidden;
+  }
+
+  if (view === selectedView.TRASH) {
+    return note.isTrash;
+  }
+
+  if (view === selectedView.FOLDERS) {
+    return note.folderId === folderId && !note.isTrash;
+  }
+
+  return false;
+};
+
+const getFirstSelectableNoteId = (
+  notes: Record<string, Note>,
+  view: SelectedView,
+  folderId: string | null,
+) => {
+  if (view === selectedView.SCRATCHPAD) {
+    return null;
+  }
+
+  return (
+    Object.values(notes).find((note) =>
+      isNoteVisibleInView(note, view, folderId),
+    )?.id ?? null
+  );
+};
 
 const MainView = () => {
   const [openCreateFolderDialog, setOpenCreateFolderDialog] = useState(false);
@@ -28,11 +75,25 @@ const MainView = () => {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [scratchpadValue, setScratchpadValue] = useLocalStorage<string>(
-    "scratchpad",
-    "Welcome to Nout!\n\nThis is your scratchpad. You can write down quick notes here that won't be saved permanently.\n\nFeel free to type anything you want, and it will be saved automatically as you type.",
+    storageKeys.SCRATCHPAD,
+    DEFAULT_SCRATCHPAD_CONTENT,
   );
+  const [cloudScratchpadValue, setCloudScratchpadValue] = useState(
+    DEFAULT_SCRATCHPAD_CONTENT,
+  );
+  const [scratchpadLoading, setScratchpadLoading] = useState(false);
+  const scratchpadSeededRef = useRef(false);
 
   const {
+    user,
+    loading: sessionLoading,
+    signIn,
+    signOut,
+    firebaseEnabled,
+  } = useSession();
+
+  const {
+    loading,
     notes,
     folders,
     addNote,
@@ -47,41 +108,92 @@ const MainView = () => {
     hideNote,
   } = useNotes();
 
-  const selectInitialNote = useEffectEvent(
-    (view = currentView, folderId = selectedFolderId) => {
-      if (view === selectedView.SCRATCHPAD) {
-        setSelectedNoteId(null);
-      } else if (view === selectedView.NOTES) {
-        setSelectedNoteId(
-          Object.keys(notes).find((id) => !notes[id].isTrash) || null,
-        );
-      } else if (view === selectedView.FAVORITES) {
-        setSelectedNoteId(
-          Object.keys(notes).find(
-            (id) => notes[id].isFav && !notes[id].isTrash,
-          ) || null,
-        );
-      } else if (view === selectedView.TRASH) {
-        setSelectedNoteId(
-          Object.keys(notes).find((id) => notes[id].isTrash) || null,
-        );
-      } else if (view === selectedView.FOLDERS && folderId) {
-        const firstFolderNoteId = Object.keys(notes).find(
-          (id) => notes[id].folderId === folderId && !notes[id].isTrash,
-        );
-        const firstFolderNote = firstFolderNoteId
-          ? notes[firstFolderNoteId]
-          : null;
-        setSelectedNoteId(firstFolderNote ? firstFolderNote.id : null);
-      }
+  const seedLocalScratchpad = useEffectEvent(
+    async (scratchpadRef: ReturnType<typeof doc>) => {
+      setCloudScratchpadValue(scratchpadValue);
+      await setDoc(scratchpadRef, { value: scratchpadValue }, { merge: true });
     },
   );
 
   useEffect(() => {
-    selectInitialNote();
-  }, []);
+    scratchpadSeededRef.current = false;
 
-  const getSelectedNote = () => getNoteById(selectedNoteId || "") || null;
+    if (!user || !db) {
+      setScratchpadLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const cloudDb = db;
+    const userId = user.uid;
+
+    void (async () => {
+      const scratchpadRef = doc(cloudDb, "users", userId, "meta", "scratchpad");
+
+      setScratchpadLoading(true);
+      try {
+        const scratchpadSnapshot = await getDoc(scratchpadRef);
+        if (controller.signal.aborted) return;
+
+        if (scratchpadSnapshot.exists()) {
+          const cloudValue =
+            (scratchpadSnapshot.data() as { value?: string }).value ??
+            DEFAULT_SCRATCHPAD_CONTENT;
+          setCloudScratchpadValue(cloudValue);
+        } else {
+          await seedLocalScratchpad(scratchpadRef);
+        }
+
+        if (controller.signal.aborted) return;
+        scratchpadSeededRef.current = true;
+      } catch (error) {
+        console.error("Failed to load scratchpad", error);
+      } finally {
+        if (!controller.signal.aborted) {
+          setScratchpadLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      controller.abort();
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || !db || !scratchpadSeededRef.current) return;
+
+    const scratchpadRef = doc(db, "users", user.uid, "meta", "scratchpad");
+    const timer = window.setTimeout(() => {
+      void setDoc(
+        scratchpadRef,
+        { value: cloudScratchpadValue },
+        { merge: true },
+      );
+    }, 400);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [user, cloudScratchpadValue]);
+
+  const effectiveSelectedNoteId = (() => {
+    if (currentView === selectedView.SCRATCHPAD) {
+      return null;
+    }
+
+    const selectedNote = selectedNoteId
+      ? (notes[selectedNoteId] ?? null)
+      : null;
+    if (isNoteVisibleInView(selectedNote, currentView, selectedFolderId)) {
+      return selectedNoteId;
+    }
+
+    return getFirstSelectableNoteId(notes, currentView, selectedFolderId);
+  })();
+
+  const getSelectedNote = () =>
+    getNoteById(effectiveSelectedNoteId || "") || null;
 
   const handleClickOpen = () => {
     setOpenCreateFolderDialog(true);
@@ -118,6 +230,7 @@ const MainView = () => {
   };
 
   const handleNewNote = () => {
+    if (loading) return;
     const noteId = addNote(currentView, selectedFolderId || undefined);
     setSelectedNoteId(noteId);
   };
@@ -145,15 +258,19 @@ const MainView = () => {
 
   const handleEditorChange = (value: string) => {
     if (currentView === selectedView.SCRATCHPAD) {
-      setScratchpadValue(value);
-    } else if (selectedNoteId) {
-      updateNoteText(selectedNoteId, value);
+      if (user) {
+        setCloudScratchpadValue(value);
+      } else {
+        setScratchpadValue(value);
+      }
+    } else if (effectiveSelectedNoteId) {
+      updateNoteText(effectiveSelectedNoteId, value);
     }
   };
 
   const getEditorContent = () => {
     if (currentView === selectedView.SCRATCHPAD) {
-      return scratchpadValue;
+      return user ? cloudScratchpadValue : scratchpadValue;
     } else {
       const note = getSelectedNote();
       return note ? note.text : "";
@@ -162,14 +279,10 @@ const MainView = () => {
 
   const handleViewChange = (view: SelectedView) => {
     setCurrentView(view);
-    if (view !== selectedView.FOLDERS) {
-      selectInitialNote(view);
-    }
   };
 
   const handleFolderSelect = (folderId: string) => {
     setSelectedFolderId(folderId);
-    selectInitialNote(selectedView.FOLDERS, folderId);
   };
 
   return (
@@ -181,6 +294,12 @@ const MainView = () => {
               currentView={currentView}
               selectedFolderId={selectedFolderId}
               folders={folders}
+              loading={loading || sessionLoading || scratchpadLoading}
+              cloudEnabled={firebaseEnabled}
+              cloudConnected={Boolean(user)}
+              signedInEmail={user?.email ?? null}
+              onCloudSignIn={signIn}
+              onCloudSignOut={signOut}
               onViewChange={handleViewChange}
               onFolderSelect={handleFolderSelect}
               onAddFolder={handleClickOpen}
@@ -198,11 +317,12 @@ const MainView = () => {
             paddingX={0}
           >
             <FolderView
+              loading={loading}
               currentView={currentView}
               notes={notes}
               folders={folders}
               selectedFolderId={selectedFolderId}
-              selectedNoteId={selectedNoteId}
+              selectedNoteId={effectiveSelectedNoteId}
               onFavNote={handleFavNote}
               onTrashNote={handleTrashNote}
               onMoveNoteToFolder={handleMoveNoteToFolder}
@@ -213,14 +333,19 @@ const MainView = () => {
             />
           </Grid>
         )}
-        {(selectedNoteId || currentView === selectedView.SCRATCHPAD) && (
+        {(effectiveSelectedNoteId ||
+          currentView === selectedView.SCRATCHPAD) && (
           <Grid size="grow" className="mainView__rightPanel">
-            <Tiptap
-              content={getEditorContent()}
-              onChange={handleEditorChange}
-              editable={currentView !== selectedView.TRASH}
-              key={selectedNoteId || selectedView.SCRATCHPAD}
-            />
+            {loading ? (
+              <Skeleton variant="rectangular" width="100%" height="100%" />
+            ) : (
+              <Tiptap
+                content={getEditorContent()}
+                onChange={handleEditorChange}
+                editable={currentView !== selectedView.TRASH}
+                key={effectiveSelectedNoteId || selectedView.SCRATCHPAD}
+              />
+            )}
           </Grid>
         )}
       </Grid>
