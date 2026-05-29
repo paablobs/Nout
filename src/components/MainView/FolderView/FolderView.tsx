@@ -138,6 +138,7 @@ const FolderView = ({
         <>
           <ListItem disablePadding>
             <Button
+              data-testid="empty-trash-btn"
               onClick={onEmptyTrash}
               sx={{
                 borderRadius: 1,

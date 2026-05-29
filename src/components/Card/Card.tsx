@@ -83,7 +83,10 @@ const CustomCard = ({
         );
         return (
           <>
-            <IconButton {...bindTrigger(popupState)}>
+            <IconButton
+              data-testid={`move-folder-btn-${id}`}
+              {...bindTrigger(popupState)}
+            >
               <MoveToFolderIcon />
             </IconButton>
             <Menu {...bindMenu(popupState)}>
@@ -91,6 +94,7 @@ const CustomCard = ({
                 availableFolders.map((folder: { id: string; name: string }) => (
                   <MenuItem
                     key={folder.id}
+                    data-testid={`move-to-folder-${folder.name}`}
                     onClick={() => {
                       popupState.close();
                       if (onMoveToFolder) onMoveToFolder(id, folder.id);
@@ -114,11 +118,15 @@ const CustomCard = ({
       {(popupState) => {
         return (
           <>
-            <IconButton {...bindTrigger(popupState)}>
+            <IconButton
+              data-testid={`three-dot-btn-${id}`}
+              {...bindTrigger(popupState)}
+            >
               <ThreeDotMenuIcon />
             </IconButton>
             <Menu {...bindMenu(popupState)}>
               <MenuItem
+                data-testid={`hide-note-${id}`}
                 onClick={() => {
                   popupState.close();
                   if (onHide) onHide(id);
@@ -136,7 +144,7 @@ const CustomCard = ({
   );
 
   return (
-    <Box className="box">
+    <Box className="box" data-testid={`note-card-${id}`}>
       <Card
         className="box__card"
         variant="outlined"
@@ -161,7 +169,10 @@ const CustomCard = ({
         <CardActions>
           {!isTrash && (
             <>
-              <IconButton onClick={onFav ? () => onFav(id) : undefined}>
+              <IconButton
+                data-testid={`fav-btn-${id}`}
+                onClick={onFav ? () => onFav(id) : undefined}
+              >
                 {isFav ? (
                   <StarIcon sx={{ color: yellow[700] }} />
                 ) : (
@@ -171,6 +182,7 @@ const CustomCard = ({
               {moveToFolderPopup()}
               {!isDefaultCategory(category) ? hideFromAllNotesPopup() : null}
               <IconButton
+                data-testid={`trash-btn-${id}`}
                 onClick={
                   onTrash
                     ? (e) => {
@@ -187,6 +199,7 @@ const CustomCard = ({
           )}
           {isTrash && (
             <IconButton
+              data-testid={`restore-btn-${id}`}
               onClick={
                 onRestore
                   ? (e) => {

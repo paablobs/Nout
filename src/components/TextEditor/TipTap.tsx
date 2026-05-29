@@ -58,7 +58,9 @@ const Tiptap = ({ content, onChange, editable = true }: TiptapProps) => {
 
   return (
     <EditorContext.Provider value={providerValue}>
-      <EditorContent editor={editor} />
+      <div data-testid="tiptap-editor">
+        <EditorContent editor={editor} />
+      </div>
     </EditorContext.Provider>
   );
 };

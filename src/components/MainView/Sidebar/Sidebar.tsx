@@ -86,6 +86,7 @@ const Sidebar = ({
             {currentView !== selectedView.TRASH &&
               currentView !== selectedView.SCRATCHPAD && (
                 <Button
+                  data-testid="new-note-btn"
                   variant="contained"
                   color="secondary"
                   onClick={onNewNote}
@@ -103,6 +104,7 @@ const Sidebar = ({
           </ListItem>
           <ListItem disablePadding>
             <ListItemButton
+              data-testid="nav-scratchpad"
               selected={currentView === selectedView.SCRATCHPAD}
               onClick={() => onViewChange(selectedView.SCRATCHPAD)}
             >
@@ -114,6 +116,7 @@ const Sidebar = ({
           </ListItem>
           <ListItem disablePadding>
             <ListItemButton
+              data-testid="nav-notes"
               selected={currentView === selectedView.NOTES}
               onClick={() => onViewChange(selectedView.NOTES)}
             >
@@ -125,6 +128,7 @@ const Sidebar = ({
           </ListItem>
           <ListItem disablePadding>
             <ListItemButton
+              data-testid="nav-favorites"
               selected={currentView === selectedView.FAVORITES}
               onClick={() => onViewChange(selectedView.FAVORITES)}
             >
@@ -136,6 +140,7 @@ const Sidebar = ({
           </ListItem>
           <ListItem disablePadding>
             <ListItemButton
+              data-testid="nav-trash"
               selected={currentView === selectedView.TRASH}
               onClick={() => onViewChange(selectedView.TRASH)}
             >
@@ -146,7 +151,7 @@ const Sidebar = ({
             </ListItemButton>
           </ListItem>
           <ListItem disablePadding>
-            <ListItemButton onClick={onAddFolder}>
+            <ListItemButton data-testid="nav-add-folder" onClick={onAddFolder}>
               <ListItemIcon>
                 <CreateNewFolderIcon />
               </ListItemIcon>
@@ -168,10 +173,12 @@ const Sidebar = ({
             folders.map((folder) => (
               <ListItem
                 key={folder.id}
+                data-testid={`folder-item-${folder.name}`}
                 disablePadding
                 secondaryAction={
                   <IconButton
                     edge="end"
+                    data-testid={`delete-folder-${folder.name}`}
                     onClick={() => onDeleteFolder(folder)}
                     aria-label="delete-folder"
                   >
@@ -180,6 +187,7 @@ const Sidebar = ({
                 }
               >
                 <ListItemButton
+                  data-testid={`folder-btn-${folder.name}`}
                   selected={
                     currentView === selectedView.FOLDERS &&
                     selectedFolderId === folder.id
@@ -215,6 +223,7 @@ const Sidebar = ({
           </Typography>
         )}
         <Button
+          data-testid="cloud-auth-btn"
           fullWidth
           color="info"
           variant="outlined"
