@@ -94,6 +94,37 @@ Covered scenarios:
 - Firestore rules deny cross-user access
 - Firestore rules deny invalid schema writes
 
+E2E tests (Playwright)
+
+Browser-based end-to-end tests that run against the Vite dev server with Chromium.
+
+Run Playwright tests:
+
+```bash
+npm run test:e2e
+```
+
+or with the interactive UI:
+
+```bash
+npm run test:e2e:ui
+```
+
+The dev server is started automatically by the test runner via the `webServer` config.
+
+Covered scenarios:
+
+- Navigation between views (Notes, Favorites, Trash, Scratchpad, Folders)
+- Creating, editing, favoriting, trashing, and restoring notes
+- Hiding notes from the Notes view
+- Creating and deleting folders
+- Moving notes between folders
+- Emptying the trash with confirmation
+- Scratchpad editing and localStorage persistence
+- Favorites view filtering
+
+Tests operate in offline-only mode using seeded localStorage data — no Firebase emulator required.
+
 Helpful scripts
 
 - `npm run lint` — run ESLint
