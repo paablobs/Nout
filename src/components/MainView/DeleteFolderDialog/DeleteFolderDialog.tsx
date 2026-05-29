@@ -20,7 +20,7 @@ const DeleteFolderDialog = ({
   onDeleteFolder,
   onClose,
 }: DeleteFolderDialogProps) => (
-  <Dialog open={isOpen} onClose={onClose}>
+  <Dialog data-testid="delete-folder-dialog" open={isOpen} onClose={onClose}>
     <DialogTitle>Delete Folder</DialogTitle>
     <DialogContent>
       <DialogContentText>
@@ -28,8 +28,15 @@ const DeleteFolderDialog = ({
       </DialogContentText>
     </DialogContent>
     <DialogActions>
-      <Button onClick={onClose}>Cancel</Button>
-      <Button onClick={onDeleteFolder} color="error" variant="contained">
+      <Button data-testid="delete-folder-cancel" onClick={onClose}>
+        Cancel
+      </Button>
+      <Button
+        data-testid="delete-folder-confirm"
+        onClick={onDeleteFolder}
+        color="error"
+        variant="contained"
+      >
         Delete
       </Button>
     </DialogActions>

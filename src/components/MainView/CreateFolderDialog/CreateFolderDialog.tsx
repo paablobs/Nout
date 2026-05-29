@@ -33,7 +33,11 @@ const CreateFolderDialog = ({
   };
 
   return (
-    <Dialog open={isOpen} onClose={handleClose}>
+    <Dialog
+      data-testid="create-folder-dialog"
+      open={isOpen}
+      onClose={handleClose}
+    >
       <form onSubmit={handleSubmit}>
         <DialogTitle>Add Folder</DialogTitle>
         <DialogContent>
@@ -41,6 +45,7 @@ const CreateFolderDialog = ({
             Please enter the name for the new folder.
           </DialogContentText>
           <TextField
+            data-testid="folder-name-input"
             autoFocus
             required
             margin="dense"
@@ -55,8 +60,15 @@ const CreateFolderDialog = ({
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="contained" color="secondary">
+          <Button data-testid="create-folder-cancel" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            data-testid="create-folder-submit"
+            type="submit"
+            variant="contained"
+            color="secondary"
+          >
             Add
           </Button>
         </DialogActions>

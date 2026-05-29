@@ -18,7 +18,7 @@ const EmptyTrashDialog = ({
   onEmptyTrash,
   onClose,
 }: EmptyTrashDialogProps) => (
-  <Dialog open={isOpen} onClose={onClose}>
+  <Dialog data-testid="empty-trash-dialog" open={isOpen} onClose={onClose}>
     <DialogTitle>Empty Trash</DialogTitle>
     <DialogContent>
       <DialogContentText>
@@ -27,8 +27,15 @@ const EmptyTrashDialog = ({
       </DialogContentText>
     </DialogContent>
     <DialogActions>
-      <Button onClick={onClose}>Cancel</Button>
-      <Button onClick={onEmptyTrash} color="error" variant="contained">
+      <Button data-testid="empty-trash-cancel" onClick={onClose}>
+        Cancel
+      </Button>
+      <Button
+        data-testid="empty-trash-confirm"
+        onClick={onEmptyTrash}
+        color="error"
+        variant="contained"
+      >
         Empty Trash
       </Button>
     </DialogActions>
