@@ -18,7 +18,12 @@ const EmptyTrashDialog = ({
   onEmptyTrash,
   onClose,
 }: EmptyTrashDialogProps) => (
-  <Dialog data-testid="empty-trash-dialog" open={isOpen} onClose={onClose}>
+  <Dialog
+    data-testid="empty-trash-dialog"
+    open={isOpen}
+    onClose={onClose}
+    role="alertdialog"
+  >
     <DialogTitle>Empty Trash</DialogTitle>
     <DialogContent>
       <DialogContentText>

@@ -56,6 +56,18 @@ function App() {
           },
         },
       },
+      MuiCssBaseline: {
+        styleOverrides: {
+          "*:focus-visible": {
+            outline: "2px solid #90caf9",
+            outlineOffset: "2px",
+          },
+          "button:focus-visible, [role='button']:focus-visible": {
+            outline: "2px solid #90caf9",
+            outlineOffset: "2px",
+          },
+        },
+      },
     },
   });
 

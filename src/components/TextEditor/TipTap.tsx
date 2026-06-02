@@ -42,6 +42,10 @@ const Tiptap = ({ content, onChange, editable = true }: TiptapProps) => {
     editorProps: {
       attributes: {
         class: "editor",
+        role: "textbox",
+        "aria-multiline": "true",
+        "aria-readonly": editable ? "false" : "true",
+        "aria-label": "Note content",
       },
     },
   });

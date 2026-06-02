@@ -9,6 +9,7 @@ import {
   Button,
   Grid,
   Skeleton,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import {
@@ -26,6 +27,7 @@ import { yellow } from "@mui/material/colors";
 
 import { selectedView, type SelectedView } from "../../../utils/selectedView";
 import { DEFAULT_CATEGORY } from "../../../utils/constants";
+import SrOnly from "../../../utils/SrOnly";
 
 interface Folder {
   id: string;
@@ -69,12 +71,19 @@ const Sidebar = ({
   return (
     <Grid container spacing={0} direction={"column"} height={"100%"}>
       <Grid size="auto">
-        <List>
+        <List aria-label="Primary navigation">
           <ListItem sx={{ paddingRight: 0, paddingTop: 0 }}>
-            <ListItemText
-              slotProps={{ primary: { fontSize: "2rem", fontWeight: "bold" } }}
+            <Typography
+              component="h1"
+              sx={{
+                fontSize: "2rem",
+                fontWeight: "bold",
+                display: "flex",
+                alignItems: "center",
+              }}
             >
               <CodeIcon
+                aria-hidden="true"
                 sx={{
                   fontSize: "3rem",
                   marginRight: 1,
@@ -82,24 +91,27 @@ const Sidebar = ({
                 }}
               />
               Nout
-            </ListItemText>
+            </Typography>
             {currentView !== selectedView.TRASH &&
               currentView !== selectedView.SCRATCHPAD && (
-                <Button
-                  data-testid="new-note-btn"
-                  variant="contained"
-                  color="secondary"
-                  onClick={onNewNote}
-                  disabled={loading}
-                  sx={{
-                    aspectRatio: "1 / 1",
-                    minWidth: 0,
-                    borderRadius: "50%",
-                    padding: 1,
-                  }}
-                >
-                  <NewNoteIcon fontSize="large" />
-                </Button>
+                <Tooltip title="Create new note">
+                  <Button
+                    data-testid="new-note-btn"
+                    variant="contained"
+                    color="secondary"
+                    onClick={onNewNote}
+                    disabled={loading}
+                    aria-label="Create new note"
+                    sx={{
+                      aspectRatio: "1 / 1",
+                      minWidth: 0,
+                      borderRadius: "50%",
+                      padding: 1,
+                    }}
+                  >
+                    <NewNoteIcon aria-hidden="true" fontSize="large" />
+                  </Button>
+                </Tooltip>
               )}
           </ListItem>
           <ListItem disablePadding>
@@ -109,7 +121,7 @@ const Sidebar = ({
               onClick={() => onViewChange(selectedView.SCRATCHPAD)}
             >
               <ListItemIcon>
-                <DashboardCustomizeIcon />
+                <DashboardCustomizeIcon aria-hidden="true" />
               </ListItemIcon>
               <ListItemText primary="Scratchpad" />
             </ListItemButton>
@@ -121,7 +133,7 @@ const Sidebar = ({
               onClick={() => onViewChange(selectedView.NOTES)}
             >
               <ListItemIcon>
-                <NotesIcon />
+                <NotesIcon aria-hidden="true" />
               </ListItemIcon>
               <ListItemText primary={DEFAULT_CATEGORY} />
             </ListItemButton>
@@ -133,7 +145,7 @@ const Sidebar = ({
               onClick={() => onViewChange(selectedView.FAVORITES)}
             >
               <ListItemIcon>
-                <StarIcon />
+                <StarIcon aria-hidden="true" />
               </ListItemIcon>
               <ListItemText primary="Favorites" />
             </ListItemButton>
@@ -145,7 +157,7 @@ const Sidebar = ({
               onClick={() => onViewChange(selectedView.TRASH)}
             >
               <ListItemIcon>
-                <DeleteIcon />
+                <DeleteIcon aria-hidden="true" />
               </ListItemIcon>
               <ListItemText primary="Trash" />
             </ListItemButton>
@@ -153,7 +165,7 @@ const Sidebar = ({
           <ListItem disablePadding>
             <ListItemButton data-testid="nav-add-folder" onClick={onAddFolder}>
               <ListItemIcon>
-                <CreateNewFolderIcon />
+                <CreateNewFolderIcon aria-hidden="true" />
               </ListItemIcon>
               <ListItemText primary="Add folder" />
             </ListItemButton>
@@ -162,7 +174,7 @@ const Sidebar = ({
         </List>
       </Grid>
       <Grid size="grow" overflow={"auto"} sx={{ scrollbarGutter: "stable" }}>
-        <List>
+        <List aria-label="Folders">
           {loading ? (
             <ListItem disablePadding>
               <div style={{ width: "100%", padding: "8px" }}>
@@ -176,14 +188,16 @@ const Sidebar = ({
                 data-testid={`folder-item-${folder.name}`}
                 disablePadding
                 secondaryAction={
-                  <IconButton
-                    edge="end"
-                    data-testid={`delete-folder-${folder.name}`}
-                    onClick={() => onDeleteFolder(folder)}
-                    aria-label="delete-folder"
-                  >
-                    <ClearIcon />
-                  </IconButton>
+                  <Tooltip title={`Delete folder "${folder.name}"`}>
+                    <IconButton
+                      edge="end"
+                      data-testid={`delete-folder-${folder.name}`}
+                      onClick={() => onDeleteFolder(folder)}
+                      aria-label={`Delete folder ${folder.name}`}
+                    >
+                      <ClearIcon aria-hidden="true" />
+                    </IconButton>
+                  </Tooltip>
                 }
               >
                 <ListItemButton
@@ -198,7 +212,10 @@ const Sidebar = ({
                   }}
                 >
                   <ListItemIcon>
-                    <FolderIcon sx={{ color: folder.color ?? yellow[500] }} />
+                    <FolderIcon
+                      aria-hidden="true"
+                      sx={{ color: folder.color ?? yellow[500] }}
+                    />
                   </ListItemIcon>
                   <ListItemText primary={folder.name} />
                 </ListItemButton>
@@ -218,8 +235,14 @@ const Sidebar = ({
         }}
       >
         {cloudConnected && signedInEmail && (
-          <Typography variant="body2" color="text.secondary" marginBottom={1}>
-            Signed as: {signedInEmail}
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            marginBottom={1}
+            aria-label={`Signed in as ${signedInEmail}`}
+          >
+            <SrOnly>Signed in as </SrOnly>
+            {signedInEmail}
           </Typography>
         )}
         <Button

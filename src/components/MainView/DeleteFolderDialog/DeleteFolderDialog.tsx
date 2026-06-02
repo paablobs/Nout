@@ -20,7 +20,12 @@ const DeleteFolderDialog = ({
   onDeleteFolder,
   onClose,
 }: DeleteFolderDialogProps) => (
-  <Dialog data-testid="delete-folder-dialog" open={isOpen} onClose={onClose}>
+  <Dialog
+    data-testid="delete-folder-dialog"
+    open={isOpen}
+    onClose={onClose}
+    role="alertdialog"
+  >
     <DialogTitle>Delete Folder</DialogTitle>
     <DialogContent>
       <DialogContentText>

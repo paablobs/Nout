@@ -12,17 +12,18 @@
 /* Color swatches */
 .color {
   white-space: nowrap;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.22);
   font-weight: normal;
   border-radius: 4px;
   font-size: 0.8em;
-  color: #b3b3b3;
+  color: #f0f0f0;
   font-family: monospace;
   height: 1.5em;
   display: inline-flex;
   align-items: center;
   padding: 0.25em;
   text-transform: uppercase;
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .color::before {

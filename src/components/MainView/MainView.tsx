@@ -18,9 +18,12 @@ import { DEFAULT_SCRATCHPAD_CONTENT } from "../../utils/constants";
 import { useSession } from "../../contexts/SessionContext";
 import { db } from "../../config/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
+import SrOnly from "../../utils/SrOnly";
 
 // styles
 import "./MainView.css";
+
+const SAVE_ANNOUNCEMENT_DELAY_MS = 800;
 
 const isNoteVisibleInView = (
   note: Note | null,
@@ -64,6 +67,23 @@ const getFirstSelectableNoteId = (
   );
 };
 
+const getVisibleNoteIds = (
+  notes: Record<string, Note>,
+  view: SelectedView,
+  folderId: string | null,
+): string[] =>
+  Object.values(notes)
+    .filter((note) => isNoteVisibleInView(note, view, folderId))
+    .map((note) => note.id);
+
+const focusNoteCard = (noteId: string | null) => {
+  if (!noteId) return;
+  const element = document.querySelector<HTMLElement>(
+    `[data-testid="note-card-${noteId}"]`,
+  );
+  element?.focus();
+};
+
 const MainView = () => {
   const [openCreateFolderDialog, setOpenCreateFolderDialog] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
@@ -82,7 +102,9 @@ const MainView = () => {
     DEFAULT_SCRATCHPAD_CONTENT,
   );
   const [scratchpadLoading, setScratchpadLoading] = useState(false);
+  const [saveAnnouncement, setSaveAnnouncement] = useState("");
   const scratchpadSeededRef = useRef(false);
+  const saveAnnouncementTimerRef = useRef<number | null>(null);
 
   const {
     user,
@@ -177,6 +199,14 @@ const MainView = () => {
     };
   }, [user, cloudScratchpadValue]);
 
+  useEffect(() => {
+    return () => {
+      if (saveAnnouncementTimerRef.current !== null) {
+        window.clearTimeout(saveAnnouncementTimerRef.current);
+      }
+    };
+  }, []);
+
   const effectiveSelectedNoteId = (() => {
     if (currentView === selectedView.SCRATCHPAD) {
       return null;
@@ -248,8 +278,17 @@ const MainView = () => {
   };
 
   const handleTrashNote = (id: string) => {
+    const visibleIds = getVisibleNoteIds(notes, currentView, selectedFolderId);
+    const currentIndex = visibleIds.indexOf(id);
+    const nextId =
+      visibleIds[currentIndex + 1] ?? visibleIds[currentIndex - 1] ?? null;
+
     deleteNotes([id]);
-    setSelectedNoteId(null);
+    setSelectedNoteId(nextId);
+
+    window.requestAnimationFrame(() => {
+      focusNoteCard(nextId);
+    });
   };
 
   const handleRestoreNote = (id: string) => {
@@ -266,6 +305,14 @@ const MainView = () => {
     } else if (effectiveSelectedNoteId) {
       updateNoteText(effectiveSelectedNoteId, value);
     }
+
+    if (saveAnnouncementTimerRef.current !== null) {
+      window.clearTimeout(saveAnnouncementTimerRef.current);
+    }
+    saveAnnouncementTimerRef.current = window.setTimeout(() => {
+      setSaveAnnouncement("Note saved");
+      saveAnnouncementTimerRef.current = null;
+    }, SAVE_ANNOUNCEMENT_DELAY_MS);
   };
 
   const getEditorContent = () => {
@@ -289,7 +336,7 @@ const MainView = () => {
     <div className="mainView">
       <Grid container spacing={3} className="mainView__gridContainer">
         <Grid width={300}>
-          <div className="mainView__leftPanel">
+          <nav aria-label="Primary" className="mainView__leftPanel">
             <Sidebar
               currentView={currentView}
               selectedFolderId={selectedFolderId}
@@ -306,7 +353,7 @@ const MainView = () => {
               onDeleteFolder={handleOpenDeleteDialog}
               onNewNote={handleNewNote}
             />
-          </div>
+          </nav>
         </Grid>
         {currentView !== selectedView.SCRATCHPAD && (
           <Grid
@@ -315,6 +362,8 @@ const MainView = () => {
             gap={1}
             padding={1}
             paddingX={0}
+            component="section"
+            aria-label="Notes list"
           >
             <FolderView
               loading={loading}
@@ -335,7 +384,13 @@ const MainView = () => {
         )}
         {(effectiveSelectedNoteId ||
           currentView === selectedView.SCRATCHPAD) && (
-          <Grid size="grow" className="mainView__rightPanel">
+          <Grid
+            size="grow"
+            className="mainView__rightPanel"
+            component="main"
+            aria-label="Note editor"
+            aria-busy={loading}
+          >
             {loading ? (
               <Skeleton variant="rectangular" width="100%" height="100%" />
             ) : (
@@ -349,6 +404,9 @@ const MainView = () => {
           </Grid>
         )}
       </Grid>
+      <SrOnly as="div" role="status" aria-live="polite" aria-atomic="true">
+        {saveAnnouncement}
+      </SrOnly>
       <CreateFolderDialog
         isOpen={openCreateFolderDialog}
         onAddFolder={handleAddFolder}
