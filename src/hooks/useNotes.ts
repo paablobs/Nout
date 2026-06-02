@@ -96,12 +96,14 @@ const useNotes = () => {
 
       setLoading(true);
       try {
+        if (controller.signal.aborted) return;
         const [foldersSnapshot, notesSnapshot] = await Promise.all([
           getDocs(foldersRef),
           getDocs(notesRef),
         ]);
 
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || !foldersSnapshot || !notesSnapshot)
+          return;
 
         const nextFolders = foldersSnapshot.docs.map(
           (item) => item.data() as Folder,
@@ -111,13 +113,14 @@ const useNotes = () => {
         );
 
         if (nextFolders.length === 0 && nextNotesList.length === 0) {
+          if (controller.signal.aborted) return;
           const didSeed = await seedLocalDataToCloud(
             cloudDb,
             foldersRef,
             notesRef,
           );
 
-          if (controller.signal.aborted) return;
+          if (controller.signal.aborted || !didSeed) return;
 
           if (didSeed) {
             return;
@@ -226,9 +229,9 @@ const useNotes = () => {
       setCloudFolders((prev) => prev.filter((folder) => folder.id !== id));
       setCloudNotes(updatedNotes);
 
-      const affectedNoteIds = Object.entries(notes)
-        .filter(([, note]) => note.folderId === id)
-        .map(([noteId]) => noteId);
+      const affectedNoteIds = Object.entries(notes).flatMap(([noteId, note]) =>
+        note.folderId === id ? [noteId] : [],
+      );
 
       void (async () => {
         try {

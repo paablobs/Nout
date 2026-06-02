@@ -1,4 +1,4 @@
-export function dispatchStorageEvent(key: string, value: string | null) {
+function dispatchStorageEvent(key: string, value: string | null) {
   window.dispatchEvent(
     new StorageEvent("storage", {
       key,
