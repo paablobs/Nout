@@ -1,4 +1,4 @@
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { useEditor, EditorContent, EditorContext } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Highlight from "@tiptap/extension-highlight";
@@ -20,6 +20,9 @@ interface TiptapProps {
 const lowlight = createLowlight(all);
 
 const Tiptap = ({ content, onChange, editable = true }: TiptapProps) => {
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -36,8 +39,8 @@ const Tiptap = ({ content, onChange, editable = true }: TiptapProps) => {
     content: content ?? "",
     editable,
     autofocus: "end",
-    onUpdate: ({ editor }) => {
-      onChange?.(editor.getHTML());
+    onUpdate: ({ editor: ed }) => {
+      onChangeRef.current?.(ed.getHTML());
     },
     editorProps: {
       attributes: {
@@ -48,10 +51,18 @@ const Tiptap = ({ content, onChange, editable = true }: TiptapProps) => {
 
   useEffect(() => {
     if (!editor) return;
+    if (content === undefined) return;
     const current = editor.getHTML();
-    if (content !== undefined && content !== current) {
-      editor.commands.setContent(content);
-    }
+    if (content === current) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) {
+        editor.commands.setContent(content);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [editor, content]);
 
   const providerValue = useMemo(() => ({ editor }), [editor]);

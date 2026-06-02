@@ -1,5 +1,5 @@
 export const DEFAULT_CATEGORY = "Notes";
-export const LEGACY_DEFAULT_CATEGORY = "All notes";
+const LEGACY_DEFAULT_CATEGORY = "All notes";
 
 export const isDefaultCategory = (category: string) =>
   category === DEFAULT_CATEGORY || category === LEGACY_DEFAULT_CATEGORY;

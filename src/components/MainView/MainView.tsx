@@ -1,25 +1,19 @@
-import { useEffect, useEffectEvent, useRef, useState } from "react";
-
-// Components & Icons
+import { useMemo } from "react";
 import { Grid, Skeleton } from "@mui/material";
 
-// Custom Hooks & Styles & Components
-import { useLocalStorage } from "../../hooks/useLocalStorage";
+import useNotes, { type Note } from "../../hooks/useNotes";
 import { selectedView, type SelectedView } from "../../utils/selectedView";
-import { storageKeys } from "../../utils/storageKeys";
+import { useSession } from "../../contexts/SessionContext";
 import Tiptap from "../TextEditor/TipTap";
 import CreateFolderDialog from "./CreateFolderDialog/CreateFolderDialog";
 import DeleteFolderDialog from "./DeleteFolderDialog/DeleteFolderDialog";
 import EmptyTrashDialog from "./EmptyTrashDialog/EmptyTrashDialog";
 import Sidebar from "./Sidebar/Sidebar";
 import FolderView from "./FolderView/FolderView";
-import useNotes, { type Folder, type Note } from "../../hooks/useNotes";
-import { DEFAULT_SCRATCHPAD_CONTENT } from "../../utils/constants";
-import { useSession } from "../../contexts/SessionContext";
-import { db } from "../../config/firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { useScratchpad } from "./hooks/useScratchpad";
+import { useViewState } from "./hooks/useViewState";
+import { useDialogs } from "./hooks/useDialogs";
 
-// styles
 import "./MainView.css";
 
 const isNoteVisibleInView = (
@@ -64,25 +58,75 @@ const getFirstSelectableNoteId = (
   );
 };
 
+const resolveEffectiveSelectedNoteId = (
+  currentView: SelectedView,
+  selectedNoteId: string | null,
+  notes: Record<string, Note>,
+  selectedFolderId: string | null,
+) => {
+  if (currentView === selectedView.SCRATCHPAD) {
+    return null;
+  }
+
+  const selectedNote = selectedNoteId ? (notes[selectedNoteId] ?? null) : null;
+  if (isNoteVisibleInView(selectedNote, currentView, selectedFolderId)) {
+    return selectedNoteId;
+  }
+
+  return getFirstSelectableNoteId(notes, currentView, selectedFolderId);
+};
+
+interface NoteEditorPanelProps {
+  loading: boolean;
+  currentView: SelectedView;
+  scratchpadValue: string;
+  selectedNote: Note | null;
+  effectiveSelectedNoteId: string | null;
+  onChange: (value: string) => void;
+}
+
+const NoteEditorPanel = ({
+  loading,
+  currentView,
+  scratchpadValue,
+  selectedNote,
+  effectiveSelectedNoteId,
+  onChange,
+}: NoteEditorPanelProps) => {
+  const showEditor =
+    Boolean(effectiveSelectedNoteId) || currentView === selectedView.SCRATCHPAD;
+
+  if (!showEditor) return null;
+
+  const content =
+    currentView === selectedView.SCRATCHPAD
+      ? scratchpadValue
+      : selectedNote
+        ? selectedNote.text
+        : "";
+
+  return (
+    <Grid size="grow" className="mainView__rightPanel">
+      {loading ? (
+        <Skeleton variant="rectangular" width="100%" height="100%" />
+      ) : (
+        <Tiptap
+          content={content}
+          onChange={onChange}
+          editable={currentView !== selectedView.TRASH}
+          key={effectiveSelectedNoteId || selectedView.SCRATCHPAD}
+        />
+      )}
+    </Grid>
+  );
+};
+
 const MainView = () => {
-  const [openCreateFolderDialog, setOpenCreateFolderDialog] = useState(false);
-  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
-  const [folderToDelete, setFolderToDelete] = useState<null | Folder>(null);
-  const [openEmptyTrashDialog, setOpenEmptyTrashDialog] = useState(false);
-  const [currentView, setCurrentView] = useState<SelectedView>(
-    selectedView.NOTES,
-  );
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
-  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
-  const [scratchpadValue, setScratchpadValue] = useLocalStorage<string>(
-    storageKeys.SCRATCHPAD,
-    DEFAULT_SCRATCHPAD_CONTENT,
-  );
-  const [cloudScratchpadValue, setCloudScratchpadValue] = useState(
-    DEFAULT_SCRATCHPAD_CONTENT,
-  );
-  const [scratchpadLoading, setScratchpadLoading] = useState(false);
-  const scratchpadSeededRef = useRef(false);
+  const { state: viewState, dispatch: viewDispatch } = useViewState();
+  const { state: dialogState, dispatch: dialogDispatch } = useDialogs();
+  const { currentView, selectedFolderId, selectedNoteId } = viewState;
+  const { openCreateFolder, openDeleteFolder, folderToDelete, openEmptyTrash } =
+    dialogState;
 
   const {
     user,
@@ -103,186 +147,58 @@ const MainView = () => {
     moveNoteToFolder,
     deleteNotes,
     restoreNote,
-    getNoteById,
     updateNoteText,
     hideNote,
   } = useNotes();
 
-  const seedLocalScratchpad = useEffectEvent(
-    async (scratchpadRef: ReturnType<typeof doc>) => {
-      setCloudScratchpadValue(scratchpadValue);
-      await setDoc(scratchpadRef, { value: scratchpadValue }, { merge: true });
-    },
+  const scratchpad = useScratchpad();
+
+  const effectiveSelectedNoteId = useMemo(
+    () =>
+      resolveEffectiveSelectedNoteId(
+        currentView,
+        selectedNoteId,
+        notes,
+        selectedFolderId,
+      ),
+    [currentView, selectedNoteId, notes, selectedFolderId],
   );
 
-  useEffect(() => {
-    scratchpadSeededRef.current = false;
-
-    if (!user || !db) {
-      setScratchpadLoading(false);
-      return;
-    }
-
-    const controller = new AbortController();
-    const cloudDb = db;
-    const userId = user.uid;
-
-    void (async () => {
-      const scratchpadRef = doc(cloudDb, "users", userId, "meta", "scratchpad");
-
-      setScratchpadLoading(true);
-      try {
-        const scratchpadSnapshot = await getDoc(scratchpadRef);
-        if (controller.signal.aborted) return;
-
-        if (scratchpadSnapshot.exists()) {
-          const cloudValue =
-            (scratchpadSnapshot.data() as { value?: string }).value ??
-            DEFAULT_SCRATCHPAD_CONTENT;
-          setCloudScratchpadValue(cloudValue);
-        } else {
-          await seedLocalScratchpad(scratchpadRef);
-        }
-
-        if (controller.signal.aborted) return;
-        scratchpadSeededRef.current = true;
-      } catch (error) {
-        console.error("Failed to load scratchpad", error);
-      } finally {
-        if (!controller.signal.aborted) {
-          setScratchpadLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      controller.abort();
-    };
-  }, [user]);
-
-  useEffect(() => {
-    if (!user || !db || !scratchpadSeededRef.current) return;
-
-    const scratchpadRef = doc(db, "users", user.uid, "meta", "scratchpad");
-    const timer = window.setTimeout(() => {
-      void setDoc(
-        scratchpadRef,
-        { value: cloudScratchpadValue },
-        { merge: true },
-      );
-    }, 400);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [user, cloudScratchpadValue]);
-
-  const effectiveSelectedNoteId = (() => {
-    if (currentView === selectedView.SCRATCHPAD) {
-      return null;
-    }
-
-    const selectedNote = selectedNoteId
-      ? (notes[selectedNoteId] ?? null)
-      : null;
-    if (isNoteVisibleInView(selectedNote, currentView, selectedFolderId)) {
-      return selectedNoteId;
-    }
-
-    return getFirstSelectableNoteId(notes, currentView, selectedFolderId);
-  })();
-
-  const getSelectedNote = () =>
-    getNoteById(effectiveSelectedNoteId || "") || null;
-
-  const handleClickOpen = () => {
-    setOpenCreateFolderDialog(true);
-  };
-
-  const handleClose = () => {
-    setOpenCreateFolderDialog(false);
-  };
-
-  const handleAddFolder = (folderName: string) => {
-    addFolder(folderName);
-  };
-
-  const handleOpenDeleteDialog = (folder: Folder) => {
-    setFolderToDelete(folder);
-    setOpenDeleteDialog(true);
-  };
-
-  const handleCloseDeleteDialog = () => {
-    setOpenDeleteDialog(false);
-    setFolderToDelete(null);
-  };
-
-  const handleConfirmDeleteFolder = () => {
-    if (folderToDelete) {
-      handleDeleteFolder(folderToDelete.id);
-    }
-    handleCloseDeleteDialog();
-  };
-
-  const handleDeleteFolder = (id: string) => {
-    deleteFolder(id);
-    setSelectedFolderId(null);
-  };
+  const selectedNote = effectiveSelectedNoteId
+    ? (notes[effectiveSelectedNoteId] ?? null)
+    : null;
 
   const handleNewNote = () => {
     if (loading) return;
     const noteId = addNote(currentView, selectedFolderId || undefined);
-    setSelectedNoteId(noteId);
-  };
-
-  const handleFavNote = (id: string) => {
-    addFavorite(id);
-  };
-
-  const handleHideNote = (id: string) => {
-    hideNote(id);
-  };
-
-  const handleMoveNoteToFolder = (noteId: string, folderId: string | null) => {
-    moveNoteToFolder(noteId, folderId);
-  };
-
-  const handleTrashNote = (id: string) => {
-    deleteNotes([id]);
-    setSelectedNoteId(null);
-  };
-
-  const handleRestoreNote = (id: string) => {
-    restoreNote(id);
+    viewDispatch({ type: "noteSelect", noteId });
   };
 
   const handleEditorChange = (value: string) => {
     if (currentView === selectedView.SCRATCHPAD) {
-      if (user) {
-        setCloudScratchpadValue(value);
-      } else {
-        setScratchpadValue(value);
-      }
+      scratchpad.setValue(value);
     } else if (effectiveSelectedNoteId) {
       updateNoteText(effectiveSelectedNoteId, value);
     }
   };
 
-  const getEditorContent = () => {
-    if (currentView === selectedView.SCRATCHPAD) {
-      return user ? cloudScratchpadValue : scratchpadValue;
-    } else {
-      const note = getSelectedNote();
-      return note ? note.text : "";
+  const handleTrashNote = (id: string) => {
+    deleteNotes([id]);
+    viewDispatch({ type: "noteSelect", noteId: null });
+  };
+
+  const handleConfirmDeleteFolder = () => {
+    if (folderToDelete) {
+      deleteFolder(folderToDelete.id);
+      viewDispatch({ type: "clearFolderSelection" });
     }
+    dialogDispatch({ type: "closeDeleteFolder" });
   };
 
-  const handleViewChange = (view: SelectedView) => {
-    setCurrentView(view);
-  };
-
-  const handleFolderSelect = (folderId: string) => {
-    setSelectedFolderId(folderId);
+  const handleEmptyTrash = () => {
+    const trashNoteIds = Object.keys(notes).filter((id) => notes[id].isTrash);
+    deleteNotes(trashNoteIds, true);
+    dialogDispatch({ type: "closeEmptyTrash" });
   };
 
   return (
@@ -294,16 +210,22 @@ const MainView = () => {
               currentView={currentView}
               selectedFolderId={selectedFolderId}
               folders={folders}
-              loading={loading || sessionLoading || scratchpadLoading}
+              loading={loading || sessionLoading || scratchpad.loading}
               cloudEnabled={firebaseEnabled}
               cloudConnected={Boolean(user)}
               signedInEmail={user?.email ?? null}
               onCloudSignIn={signIn}
               onCloudSignOut={signOut}
-              onViewChange={handleViewChange}
-              onFolderSelect={handleFolderSelect}
-              onAddFolder={handleClickOpen}
-              onDeleteFolder={handleOpenDeleteDialog}
+              onViewChange={(view) =>
+                viewDispatch({ type: "viewChange", view })
+              }
+              onFolderSelect={(folderId) =>
+                viewDispatch({ type: "folderSelect", folderId })
+              }
+              onAddFolder={() => dialogDispatch({ type: "openCreateFolder" })}
+              onDeleteFolder={(folder) =>
+                dialogDispatch({ type: "openDeleteFolder", folder })
+              }
               onNewNote={handleNewNote}
             />
           </div>
@@ -323,53 +245,42 @@ const MainView = () => {
               folders={folders}
               selectedFolderId={selectedFolderId}
               selectedNoteId={effectiveSelectedNoteId}
-              onFavNote={handleFavNote}
+              onFavNote={addFavorite}
               onTrashNote={handleTrashNote}
-              onMoveNoteToFolder={handleMoveNoteToFolder}
-              onRestoreNote={handleRestoreNote}
-              onCardSelect={setSelectedNoteId}
-              onEmptyTrash={() => setOpenEmptyTrashDialog(true)}
-              onHideNote={handleHideNote}
+              onMoveNoteToFolder={moveNoteToFolder}
+              onRestoreNote={restoreNote}
+              onCardSelect={(noteId) =>
+                viewDispatch({ type: "noteSelect", noteId })
+              }
+              onEmptyTrash={() => dialogDispatch({ type: "openEmptyTrash" })}
+              onHideNote={hideNote}
             />
           </Grid>
         )}
-        {(effectiveSelectedNoteId ||
-          currentView === selectedView.SCRATCHPAD) && (
-          <Grid size="grow" className="mainView__rightPanel">
-            {loading ? (
-              <Skeleton variant="rectangular" width="100%" height="100%" />
-            ) : (
-              <Tiptap
-                content={getEditorContent()}
-                onChange={handleEditorChange}
-                editable={currentView !== selectedView.TRASH}
-                key={effectiveSelectedNoteId || selectedView.SCRATCHPAD}
-              />
-            )}
-          </Grid>
-        )}
+        <NoteEditorPanel
+          loading={loading}
+          currentView={currentView}
+          scratchpadValue={scratchpad.value}
+          selectedNote={selectedNote}
+          effectiveSelectedNoteId={effectiveSelectedNoteId}
+          onChange={handleEditorChange}
+        />
       </Grid>
       <CreateFolderDialog
-        isOpen={openCreateFolderDialog}
-        onAddFolder={handleAddFolder}
-        onClose={handleClose}
+        isOpen={openCreateFolder}
+        onAddFolder={addFolder}
+        onClose={() => dialogDispatch({ type: "closeCreateFolder" })}
       />
       <DeleteFolderDialog
-        isOpen={openDeleteDialog}
+        isOpen={openDeleteFolder}
         folderName={folderToDelete?.name}
         onDeleteFolder={handleConfirmDeleteFolder}
-        onClose={handleCloseDeleteDialog}
+        onClose={() => dialogDispatch({ type: "closeDeleteFolder" })}
       />
       <EmptyTrashDialog
-        isOpen={openEmptyTrashDialog}
-        onEmptyTrash={() => {
-          const trashNoteIds = Object.keys(notes).filter(
-            (id) => notes[id].isTrash,
-          );
-          deleteNotes(trashNoteIds, true);
-          setOpenEmptyTrashDialog(false);
-        }}
-        onClose={() => setOpenEmptyTrashDialog(false)}
+        isOpen={openEmptyTrash}
+        onEmptyTrash={handleEmptyTrash}
+        onClose={() => dialogDispatch({ type: "closeEmptyTrash" })}
       />
     </div>
   );

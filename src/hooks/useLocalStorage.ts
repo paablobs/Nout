@@ -38,14 +38,16 @@ export function useLocalStorage<T>(
     [key, store, initialValue],
   );
 
-  React.useEffect(() => {
+  const seededRef = React.useRef(false);
+  if (!seededRef.current) {
+    seededRef.current = true;
     if (
       getLocalStorageItem(key) === null &&
       typeof initialValue !== "undefined"
     ) {
       setLocalStorageItem(key, initialValue);
     }
-  }, [key, initialValue]);
+  }
 
   return [store ? (JSON.parse(store) as T) : initialValue, setState];
 }

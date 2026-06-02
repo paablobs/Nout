@@ -25,6 +25,21 @@ import {
 } from "../../utils/constants";
 import "./Card.css";
 
+const stripHtml = (html: string) => {
+  if (!html) return "";
+  return html.replace(/<[^>]*>/g, "\n");
+};
+
+const getFirstLine = (html: string) => {
+  const plain = stripHtml(html).trim();
+  if (!plain) return "New note";
+  const lines = plain.split(/\r?\n/).flatMap((l) => {
+    const trimmed = l.trim();
+    return trimmed ? [trimmed] : [];
+  });
+  return lines.length ? lines[0] : "New note";
+};
+
 interface CustomCardProps {
   id: string;
   text: string;
@@ -60,21 +75,6 @@ const CustomCard = ({
   onSelect,
   selected,
 }: CustomCardProps) => {
-  const stripHtml = (html: string) => {
-    if (!html) return "";
-    return html.replace(/<[^>]*>/g, "\n");
-  };
-
-  const getFirstLine = (html: string) => {
-    const plain = stripHtml(html).trim();
-    if (!plain) return "New note";
-    const lines = plain
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter(Boolean);
-    return lines.length ? lines[0] : "New note";
-  };
-
   const moveToFolderPopup = () => (
     <PopupState variant="popover" popupId={`move-folder-popup-${id}`}>
       {(popupState) => {

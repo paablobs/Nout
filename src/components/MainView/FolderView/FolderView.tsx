@@ -56,11 +56,9 @@ const FolderView = ({
   return (
     <>
       {currentView === selectedView.NOTES &&
-        Object.values(notes)
-          .filter((card) => !card.isTrash && !card.isHidden)
-          .map(
-            (card) =>
-              card && (
+        Object.values(notes).flatMap((card) =>
+          !card.isTrash && !card.isHidden
+            ? [
                 <CustomCard
                   key={card.id}
                   id={card.id}
@@ -78,15 +76,14 @@ const FolderView = ({
                     onCardSelect ? () => onCardSelect(card.id) : undefined
                   }
                   selected={selectedNoteId === card.id}
-                />
-              ),
-          )}
+                />,
+              ]
+            : [],
+        )}
       {currentView === selectedView.FAVORITES &&
-        Object.values(notes)
-          .filter((card) => card.isFav && !card.isTrash && !card.isHidden)
-          .map(
-            (card) =>
-              card && (
+        Object.values(notes).flatMap((card) =>
+          card.isFav && !card.isTrash && !card.isHidden
+            ? [
                 <CustomCard
                   key={card.id}
                   id={card.id}
@@ -104,16 +101,15 @@ const FolderView = ({
                     onCardSelect ? () => onCardSelect(card.id) : undefined
                   }
                   selected={selectedNoteId === card.id}
-                />
-              ),
-          )}
+                />,
+              ]
+            : [],
+        )}
       {currentView === selectedView.FOLDERS &&
         selectedFolderId &&
-        Object.values(notes)
-          .filter((note) => note.folderId === selectedFolderId && !note.isTrash)
-          .map(
-            (card) =>
-              card && (
+        Object.values(notes).flatMap((card) =>
+          card.folderId === selectedFolderId && !card.isTrash
+            ? [
                 <CustomCard
                   key={card.id}
                   id={card.id}
@@ -131,9 +127,10 @@ const FolderView = ({
                     onCardSelect ? () => onCardSelect(card.id) : undefined
                   }
                   selected={selectedNoteId === card.id}
-                />
-              ),
-          )}
+                />,
+              ]
+            : [],
+        )}
       {currentView === selectedView.TRASH && (
         <>
           <ListItem disablePadding>
@@ -153,11 +150,9 @@ const FolderView = ({
               Empty Trash
             </Button>
           </ListItem>
-          {Object.values(notes)
-            .filter((card) => card.isTrash)
-            .map(
-              (card) =>
-                card && (
+          {Object.values(notes).flatMap((card) =>
+            card.isTrash
+              ? [
                   <CustomCard
                     key={card.id}
                     id={card.id}
@@ -171,9 +166,10 @@ const FolderView = ({
                       onCardSelect ? () => onCardSelect(card.id) : undefined
                     }
                     selected={selectedNoteId === card.id}
-                  />
-                ),
-            )}
+                  />,
+                ]
+              : [],
+          )}
         </>
       )}
     </>

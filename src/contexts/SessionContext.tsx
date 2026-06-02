@@ -2,7 +2,7 @@
 
 import {
   createContext,
-  useContext,
+  use,
   useEffect,
   useMemo,
   useState,
@@ -23,15 +23,17 @@ interface SessionContextValue {
 const SessionContext = createContext<SessionContextValue | null>(null);
 const LOADING_FEEDBACK_DELAY_MS = 300;
 
+const initialLoading = (): boolean => {
+  if (!auth || !firebaseEnabled) return false;
+  return true;
+};
+
 export const SessionProvider = ({ children }: PropsWithChildren) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(firebaseEnabled);
+  const [loading, setLoading] = useState(initialLoading);
 
   useEffect(() => {
-    if (!auth || !firebaseEnabled) {
-      setLoading(false);
-      return;
-    }
+    if (!auth || !firebaseEnabled) return;
 
     const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
       setUser(nextUser);
@@ -75,7 +77,7 @@ export const SessionProvider = ({ children }: PropsWithChildren) => {
 };
 
 export const useSession = () => {
-  const context = useContext(SessionContext);
+  const context = use(SessionContext);
 
   if (!context) {
     throw new Error("useSession must be used inside SessionProvider");
