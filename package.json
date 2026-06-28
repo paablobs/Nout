@@ -66,12 +66,5 @@
   "lint-staged": {
     "*.{js,ts,tsx}": "eslint --cache --fix",
     "*.{js,ts,tsx,css,md}": "prettier --write"
-  },
-  "onlyBuiltDependencies": [
-    "@firebase/util",
-    "@swc/core",
-    "esbuild",
-    "protobufjs",
-    "re2"
-  ]
+  }
 }
