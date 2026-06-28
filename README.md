@@ -20,25 +20,25 @@ Quick start
 1. Install dependencies:
 
 ```bash
-npm install
+pnpm install
 ```
 
 2. Start the dev server with Vite:
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 3. Build for production:
 
 ```bash
-npm run build
+pnpm build
 ```
 
 4. Preview the production build:
 
 ```bash
-npm run preview
+pnpm preview
 ```
 
 Firebase cloud mode (optional)
@@ -66,7 +66,7 @@ Security rules
 - Deploy rules with:
 
 ```bash
-npx -y firebase-tools@latest deploy --only firestore:rules
+pnpm exec firebase-tools@latest deploy --only firestore:rules
 ```
 
 Firebase security tests (emulator)
@@ -77,13 +77,13 @@ Firebase security tests (emulator)
 Run all Firebase tests:
 
 ```bash
-npm test
+pnpm test
 ```
 
 or explicitly:
 
 ```bash
-npm run test:firebase
+pnpm test:firebase
 ```
 
 Covered scenarios:
@@ -101,13 +101,13 @@ Browser-based end-to-end tests that run against the Vite dev server with Chromiu
 Run Playwright tests:
 
 ```bash
-npm run test:e2e
+pnpm test:e2e
 ```
 
 or with the interactive UI:
 
 ```bash
-npm run test:e2e:ui
+pnpm test:e2e:ui
 ```
 
 The dev server is started automatically by the test runner via the `webServer` config.
@@ -127,8 +127,8 @@ Tests operate in offline-only mode using seeded localStorage data — no Firebas
 
 Helpful scripts
 
-- `npm run lint` — run ESLint
-- `npm run storybook` — start Storybook for components
+- `pnpm lint` — run ESLint
+- `pnpm storybook` — start Storybook for components
 
 Core ideas / architecture
 
