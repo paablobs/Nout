@@ -40,6 +40,7 @@ const toNotesRecord = (notesList: Note[]) =>
   >;
 
 const useNotes = () => {
+  console.log("randompush");
   const { user, loading: sessionLoading } = useSession();
 
   const [localFolders, setLocalFolders] = useLocalStorage<Folder[]>(
