@@ -13,7 +13,9 @@ const svg = readFileSync(svgPath, "utf-8");
 const resvg = new Resvg(svg, {
   fitTo: { mode: "width", value: 1200 },
   font: {
-    loadSystemFonts: false,
+    loadSystemFonts: true,
+    fontFiles: [],
+    defaultFontFamily: "DejaVu Sans",
   },
 });
 
