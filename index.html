@@ -4,21 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0a0908" />
-    <meta name="description" content="Write stuff" />
+    <meta name="description" content="Nout is a minimal, dark-themed writing app for capturing ideas, notes, and thoughts. Write without distractions." />
+    <link rel="canonical" href="https://nout.it" />
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Nout" />
     <meta property="og:title" content="Nout - Write stuff" />
-    <meta property="og:description" content="Write stuff" />
+    <meta property="og:description" content="Nout is a minimal, dark-themed writing app for capturing ideas, notes, and thoughts. Write without distractions." />
     <meta property="og:url" content="https://nout.it" />
     <meta property="og:image" content="https://nout.it/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Nout - Write stuff" />
+    <meta property="og:locale" content="en_US" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Nout - Write stuff" />
-    <meta name="twitter:description" content="Write stuff" />
+    <meta name="twitter:description" content="Nout is a minimal, dark-themed writing app for capturing ideas, notes, and thoughts. Write without distractions." />
     <meta name="twitter:image" content="https://nout.it/og-image.png" />
 
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
@@ -28,6 +30,18 @@
     <link rel="manifest" href="/site.webmanifest" />
 
     <title>Nout - Write stuff</title>
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Nout",
+      "url": "https://nout.it",
+      "description": "Nout is a minimal, dark-themed writing app for capturing ideas, notes, and thoughts. Write without distractions.",
+      "applicationCategory": "WritingApplication",
+      "operatingSystem": "Web"
+    }
+    </script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -46,9 +60,21 @@
       * {
         scrollbar-color: rgba(255, 255, 255, 0.315) transparent;
       }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
     </style>
   </head>
   <body>
+    <h1 class="sr-only">Nout - Write stuff</h1>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
