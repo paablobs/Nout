@@ -1,7 +1,46 @@
-This project uses **React 19 + TypeScript + Firebase (Firestore) + Material UI**.
+This project uses **React 19 + TypeScript + Firebase (Firestore) + Material UI + Tiptap**.
 
 This file defines **how an agent must reason before writing or modifying code**.
 This is not a style guide — it is a _mental architecture guide_.
+
+---
+
+## 0. Project Stack & Tooling
+
+### Core Stack
+
+- **React 19** + **TypeScript** + **Vite**
+- **Firebase (Firestore)** for cloud sync (optional, offline-first by default)
+- **Material UI (MUI)** for UI components
+- **Tiptap** for rich-text editing (notes stored as HTML)
+
+### Package Manager
+
+- **pnpm** (v11.9.0) — enforced via `preinstall` script
+- Never use npm or yarn
+
+### Linting & Formatting
+
+- **oxlint** for linting (not ESLint)
+- **oxfmt** for formatting (not Prettier)
+- Config files: `.oxlintrc.json`, `.oxfmtrc.json`
+- Run: `pnpm lint` / `pnpm format`
+
+### Testing
+
+- **Vitest** for unit/integration tests
+- **Playwright** for E2E tests
+- **Firebase Emulators** for Firestore security rules tests
+- Run: `pnpm test` (Firebase), `pnpm test:e2e` (Playwright)
+
+### Pre-commit Hooks
+
+- **Husky** + **lint-staged**
+- Runs `oxlint --fix` and `oxfmt` on staged `*.{js,ts,tsx}` files
+
+### Node Version
+
+- Node.js v24 (see `.nvmrc`)
 
 ---
 
@@ -204,6 +243,23 @@ useEffect(() => {
 - Need for `eslint-disable react-hooks/exhaustive-deps`
 
 If any of these appear, the agent must **refactor**, not patch.
+
+---
+
+## 10.1. Code quality enforcement
+
+This project uses **oxlint** and **oxfmt** (not ESLint/Prettier).
+
+- Before committing, always run:
+  ```bash
+  pnpm lint        # Check for lint errors
+  pnpm lint:fix    # Auto-fix lint errors
+  pnpm format      # Format code with oxfmt
+  pnpm format:check # Check formatting without modifying
+  ```
+- The pre-commit hook (Husky + lint-staged) will automatically run `oxlint --fix` and `oxfmt` on staged files
+- If you encounter linting issues, fix them before committing
+- **Do NOT use `eslint-disable` comments** — they are not recognized by oxlint
 
 ---
 
