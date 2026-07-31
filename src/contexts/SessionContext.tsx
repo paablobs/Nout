@@ -1,5 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
-
 import {
   createContext,
   use,
@@ -76,6 +74,7 @@ export const SessionProvider = ({ children }: PropsWithChildren) => {
   return <SessionContext value={value}>{children}</SessionContext>;
 };
 
+// eslint-disable-next-line react/only-export-components
 export const useSession = () => {
   const context = use(SessionContext);
 
