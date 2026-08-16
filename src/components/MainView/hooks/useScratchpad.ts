@@ -78,7 +78,11 @@ export function useScratchpad() {
 
     const scratchpadRef = doc(db, "users", user.uid, "meta", "scratchpad");
     const timer = window.setTimeout(() => {
-      void setDoc(scratchpadRef, { value: cloudValue }, { merge: true });
+      void setDoc(scratchpadRef, { value: cloudValue }, { merge: true }).catch(
+        (error) => {
+          console.error("Failed to update scratchpad", error);
+        },
+      );
     }, SCRATCHPAD_SAVE_DEBOUNCE_MS);
 
     return () => {

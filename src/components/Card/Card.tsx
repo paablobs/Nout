@@ -85,6 +85,7 @@ const CustomCard = ({
           <>
             <IconButton
               data-testid={`move-folder-btn-${id}`}
+              aria-label="Move note to folder"
               {...bindTrigger(popupState)}
             >
               <MoveToFolderIcon />
@@ -120,6 +121,9 @@ const CustomCard = ({
           <>
             <IconButton
               data-testid={`three-dot-btn-${id}`}
+              aria-label={
+                isHidden ? "Show note in Notes" : "Hide note from Notes"
+              }
               {...bindTrigger(popupState)}
             >
               <ThreeDotMenuIcon />
@@ -171,6 +175,9 @@ const CustomCard = ({
             <>
               <IconButton
                 data-testid={`fav-btn-${id}`}
+                aria-label={
+                  isFav ? "Remove from favorites" : "Add to favorites"
+                }
                 onClick={onFav ? () => onFav(id) : undefined}
               >
                 {isFav ? (
@@ -183,6 +190,7 @@ const CustomCard = ({
               {!isDefaultCategory(category) ? hideFromAllNotesPopup() : null}
               <IconButton
                 data-testid={`trash-btn-${id}`}
+                aria-label="Move note to trash"
                 onClick={
                   onTrash
                     ? (e) => {
@@ -200,6 +208,7 @@ const CustomCard = ({
           {isTrash && (
             <IconButton
               data-testid={`restore-btn-${id}`}
+              aria-label="Restore note"
               onClick={
                 onRestore
                   ? (e) => {
