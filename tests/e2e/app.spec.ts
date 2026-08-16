@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("renders the app title", async ({ page }) => {
-  await expect(page.getByText("Nout")).toBeVisible();
+  await expect(page.getByText("Nout", { exact: true })).toBeVisible();
 });
 
 test("shows all navigation items", async ({ page }) => {
@@ -26,6 +26,16 @@ test("shows cloud auth button", async ({ page }) => {
 
 test("shows new note button by default", async ({ page }) => {
   await expect(page.locator(testId("new-note-btn"))).toBeVisible();
+});
+
+test("recovers from malformed localStorage", async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem("notes", "not-json");
+  });
+  await page.reload();
+
+  await expect(page.getByText("Nout", { exact: true })).toBeVisible();
+  await expect(page.locator(testId("nav-notes"))).toBeVisible();
 });
 
 test("navigating to scratchpad hides new note button", async ({ page }) => {

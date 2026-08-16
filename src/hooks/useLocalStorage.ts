@@ -7,6 +7,17 @@ import {
   getLocalStorageServerSnapshot,
 } from "../utils/localStorageHelper";
 
+function parseStoredValue<T>(value: string | null, fallback: T): T {
+  if (value === null) return fallback;
+
+  try {
+    return JSON.parse(value) as T;
+  } catch (error) {
+    console.warn("Invalid localStorage value", error);
+    return fallback;
+  }
+}
+
 export function useLocalStorage<T>(
   key: string,
   initialValue: T,
@@ -22,7 +33,7 @@ export function useLocalStorage<T>(
   const setState = React.useCallback(
     (v: T | ((prev: T) => T)) => {
       try {
-        const currentValue = store ? JSON.parse(store) : initialValue;
+        const currentValue = parseStoredValue(store, initialValue);
         const nextState =
           typeof v === "function" ? (v as (prev: T) => T)(currentValue) : v;
 
@@ -49,5 +60,5 @@ export function useLocalStorage<T>(
     }
   }
 
-  return [store ? (JSON.parse(store) as T) : initialValue, setState];
+  return [parseStoredValue(store, initialValue), setState];
 }

@@ -127,8 +127,8 @@ Tests operate in offline-only mode using seeded localStorage data — no Firebas
 
 Helpful scripts
 
-- `pnpm lint` — run ESLint
-- `pnpm storybook` — start Storybook for components
+- `pnpm lint` — run oxlint
+- `pnpm format` — format files with oxfmt
 
 Core ideas / architecture
 
