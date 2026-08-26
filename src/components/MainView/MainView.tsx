@@ -1,5 +1,12 @@
-import { useMemo } from "react";
-import { Grid, Skeleton } from "@mui/material";
+import { useMemo, useState } from "react";
+import {
+  Drawer,
+  Grid,
+  IconButton,
+  Skeleton,
+  useMediaQuery,
+} from "@mui/material";
+import MenuIcon from "@mui/icons-material/Menu";
 
 import useNotes, { type Note } from "../../hooks/useNotes";
 import { selectedView, type SelectedView } from "../../utils/selectedView";
@@ -122,6 +129,8 @@ const NoteEditorPanel = ({
 };
 
 const MainView = () => {
+  const isMobile = useMediaQuery("(max-width:1024px)");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { state: viewState, dispatch: viewDispatch } = useViewState();
   const { state: dialogState, dispatch: dialogDispatch } = useDialogs();
   const { currentView, selectedFolderId, selectedNoteId } = viewState;
@@ -201,35 +210,91 @@ const MainView = () => {
     dialogDispatch({ type: "closeEmptyTrash" });
   };
 
+  const closeMobileMenu = () => setMobileMenuOpen(false);
+
+  const handleViewChange = (view: SelectedView) => {
+    viewDispatch({ type: "viewChange", view });
+    closeMobileMenu();
+  };
+
+  const handleFolderSelect = (folderId: string) => {
+    viewDispatch({ type: "folderSelect", folderId });
+    closeMobileMenu();
+  };
+
   return (
     <div className="mainView">
+      {isMobile && (
+        <div className="mainView__mobileToolbar">
+          <IconButton
+            aria-label="Open navigation menu"
+            aria-controls="mobile-navigation"
+            aria-expanded={mobileMenuOpen}
+            onClick={() => setMobileMenuOpen(true)}
+          >
+            <MenuIcon />
+          </IconButton>
+        </div>
+      )}
+      {isMobile && (
+        <Drawer
+          id="mobile-navigation"
+          anchor="left"
+          open={mobileMenuOpen}
+          onClose={closeMobileMenu}
+          slotProps={{ paper: { sx: { width: 300 } } }}
+        >
+          <Sidebar
+            currentView={currentView}
+            selectedFolderId={selectedFolderId}
+            folders={folders}
+            loading={loading || sessionLoading || scratchpad.loading}
+            cloudEnabled={firebaseEnabled}
+            cloudConnected={Boolean(user)}
+            signedInEmail={user?.email ?? null}
+            onCloudSignIn={signIn}
+            onCloudSignOut={signOut}
+            onViewChange={handleViewChange}
+            onFolderSelect={handleFolderSelect}
+            onAddFolder={() => {
+              dialogDispatch({ type: "openCreateFolder" });
+              closeMobileMenu();
+            }}
+            onDeleteFolder={(folder) =>
+              dialogDispatch({ type: "openDeleteFolder", folder })
+            }
+            onNewNote={() => {
+              handleNewNote();
+              closeMobileMenu();
+            }}
+          />
+        </Drawer>
+      )}
       <Grid container spacing={3} className="mainView__gridContainer">
-        <Grid width={300}>
-          <div className="mainView__leftPanel">
-            <Sidebar
-              currentView={currentView}
-              selectedFolderId={selectedFolderId}
-              folders={folders}
-              loading={loading || sessionLoading || scratchpad.loading}
-              cloudEnabled={firebaseEnabled}
-              cloudConnected={Boolean(user)}
-              signedInEmail={user?.email ?? null}
-              onCloudSignIn={signIn}
-              onCloudSignOut={signOut}
-              onViewChange={(view) =>
-                viewDispatch({ type: "viewChange", view })
-              }
-              onFolderSelect={(folderId) =>
-                viewDispatch({ type: "folderSelect", folderId })
-              }
-              onAddFolder={() => dialogDispatch({ type: "openCreateFolder" })}
-              onDeleteFolder={(folder) =>
-                dialogDispatch({ type: "openDeleteFolder", folder })
-              }
-              onNewNote={handleNewNote}
-            />
-          </div>
-        </Grid>
+        {!isMobile && (
+          <Grid width={300}>
+            <div className="mainView__leftPanel">
+              <Sidebar
+                currentView={currentView}
+                selectedFolderId={selectedFolderId}
+                folders={folders}
+                loading={loading || sessionLoading || scratchpad.loading}
+                cloudEnabled={firebaseEnabled}
+                cloudConnected={Boolean(user)}
+                signedInEmail={user?.email ?? null}
+                onCloudSignIn={signIn}
+                onCloudSignOut={signOut}
+                onViewChange={handleViewChange}
+                onFolderSelect={handleFolderSelect}
+                onAddFolder={() => dialogDispatch({ type: "openCreateFolder" })}
+                onDeleteFolder={(folder) =>
+                  dialogDispatch({ type: "openDeleteFolder", folder })
+                }
+                onNewNote={handleNewNote}
+              />
+            </div>
+          </Grid>
+        )}
         {currentView !== selectedView.SCRATCHPAD && (
           <Grid
             maxWidth={400}
