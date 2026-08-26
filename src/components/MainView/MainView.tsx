@@ -1,69 +1,25 @@
 import { useMemo, useState } from "react";
-import {
-  Drawer,
-  Grid,
-  IconButton,
-  Skeleton,
-  useMediaQuery,
-} from "@mui/material";
+import { Drawer, Grid, IconButton, useMediaQuery } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 
 import useNotes, { type Note } from "../../hooks/useNotes";
 import { selectedView, type SelectedView } from "../../utils/selectedView";
+import {
+  isNoteVisibleInView,
+  getFirstSelectableNoteId,
+} from "../../utils/filteredNotes";
 import { useSession } from "../../contexts/SessionContext";
-import Tiptap from "../TextEditor/TipTap";
 import CreateFolderDialog from "./CreateFolderDialog/CreateFolderDialog";
 import DeleteFolderDialog from "./DeleteFolderDialog/DeleteFolderDialog";
 import EmptyTrashDialog from "./EmptyTrashDialog/EmptyTrashDialog";
 import Sidebar from "./Sidebar/Sidebar";
 import FolderView from "./FolderView/FolderView";
+import { NoteEditorPanel } from "./NoteEditorPanel/NoteEditorPanel";
 import { useScratchpad } from "./hooks/useScratchpad";
 import { useViewState } from "./hooks/useViewState";
 import { useDialogs } from "./hooks/useDialogs";
 
 import "./MainView.css";
-
-const isNoteVisibleInView = (
-  note: Note | null,
-  view: SelectedView,
-  folderId: string | null,
-) => {
-  if (!note) return false;
-
-  if (view === selectedView.NOTES) {
-    return !note.isTrash && !note.isHidden;
-  }
-
-  if (view === selectedView.FAVORITES) {
-    return note.isFav && !note.isTrash && !note.isHidden;
-  }
-
-  if (view === selectedView.TRASH) {
-    return note.isTrash;
-  }
-
-  if (view === selectedView.FOLDERS) {
-    return note.folderId === folderId && !note.isTrash;
-  }
-
-  return false;
-};
-
-const getFirstSelectableNoteId = (
-  notes: Record<string, Note>,
-  view: SelectedView,
-  folderId: string | null,
-) => {
-  if (view === selectedView.SCRATCHPAD) {
-    return null;
-  }
-
-  return (
-    Object.values(notes).find((note) =>
-      isNoteVisibleInView(note, view, folderId),
-    )?.id ?? null
-  );
-};
 
 const resolveEffectiveSelectedNoteId = (
   currentView: SelectedView,
@@ -81,51 +37,6 @@ const resolveEffectiveSelectedNoteId = (
   }
 
   return getFirstSelectableNoteId(notes, currentView, selectedFolderId);
-};
-
-interface NoteEditorPanelProps {
-  loading: boolean;
-  currentView: SelectedView;
-  scratchpadValue: string;
-  selectedNote: Note | null;
-  effectiveSelectedNoteId: string | null;
-  onChange: (value: string) => void;
-}
-
-const NoteEditorPanel = ({
-  loading,
-  currentView,
-  scratchpadValue,
-  selectedNote,
-  effectiveSelectedNoteId,
-  onChange,
-}: NoteEditorPanelProps) => {
-  const showEditor =
-    Boolean(effectiveSelectedNoteId) || currentView === selectedView.SCRATCHPAD;
-
-  if (!showEditor) return null;
-
-  const content =
-    currentView === selectedView.SCRATCHPAD
-      ? scratchpadValue
-      : selectedNote
-        ? selectedNote.text
-        : "";
-
-  return (
-    <Grid size="grow" className="mainView__rightPanel">
-      {loading ? (
-        <Skeleton variant="rectangular" width="100%" height="100%" />
-      ) : (
-        <Tiptap
-          content={content}
-          onChange={onChange}
-          editable={currentView !== selectedView.TRASH}
-          key={effectiveSelectedNoteId || selectedView.SCRATCHPAD}
-        />
-      )}
-    </Grid>
-  );
 };
 
 const MainView = () => {

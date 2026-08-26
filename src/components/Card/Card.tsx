@@ -23,22 +23,8 @@ import {
   isDefaultCategory,
   toDisplayCategory,
 } from "../../utils/constants";
+import { getPreviewText } from "../../utils/notePreview";
 import "./Card.css";
-
-const stripHtml = (html: string) => {
-  if (!html) return "";
-  return html.replace(/<[^>]*>/g, "\n");
-};
-
-const getFirstLine = (html: string) => {
-  const plain = stripHtml(html).trim();
-  if (!plain) return "New note";
-  const lines = plain.split(/\r?\n/).flatMap((l) => {
-    const trimmed = l.trim();
-    return trimmed ? [trimmed] : [];
-  });
-  return lines.length ? lines[0] : "New note";
-};
 
 interface CustomCardProps {
   id: string;
@@ -164,7 +150,7 @@ const CustomCard = ({
       >
         <CardContent>
           <Typography variant="h5" component="div" className="box__text">
-            {getFirstLine(text)}
+            {getPreviewText(text)}
           </Typography>
           <Typography variant="body2" className="box__text">
             {toDisplayCategory(category)}
