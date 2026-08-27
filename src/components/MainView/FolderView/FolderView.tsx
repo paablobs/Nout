@@ -1,6 +1,7 @@
 import { Box, Button, ListItem, Skeleton } from "@mui/material";
 import { Delete as DeleteIcon } from "@mui/icons-material";
 import { selectedView, type SelectedView } from "../../../utils/selectedView";
+import { filterNotes } from "../../../utils/filteredNotes";
 import CustomCard from "../../Card/Card";
 import type { Note } from "../../../hooks/useNotes";
 
@@ -53,125 +54,53 @@ const FolderView = ({
     );
   }
 
+  const visibleNotes = filterNotes(notes, currentView, selectedFolderId);
+
   return (
     <>
-      {currentView === selectedView.NOTES &&
-        Object.values(notes).flatMap((card) =>
-          !card.isTrash && !card.isHidden
-            ? [
-                <CustomCard
-                  key={card.id}
-                  id={card.id}
-                  text={card.text}
-                  category={card.category}
-                  isFav={card.isFav}
-                  onFav={() => onFavNote(card.id)}
-                  onTrash={() => onTrashNote(card.id)}
-                  isHidden={card.isHidden}
-                  onHide={() => onHideNote(card.id)}
-                  onMoveToFolder={onMoveNoteToFolder}
-                  folders={folders}
-                  folderId={card.folderId}
-                  onSelect={
-                    onCardSelect ? () => onCardSelect(card.id) : undefined
-                  }
-                  selected={selectedNoteId === card.id}
-                />,
-              ]
-            : [],
-        )}
-      {currentView === selectedView.FAVORITES &&
-        Object.values(notes).flatMap((card) =>
-          card.isFav && !card.isTrash && !card.isHidden
-            ? [
-                <CustomCard
-                  key={card.id}
-                  id={card.id}
-                  text={card.text}
-                  category={card.category}
-                  isFav={card.isFav}
-                  onFav={() => onFavNote(card.id)}
-                  onTrash={() => onTrashNote(card.id)}
-                  isHidden={card.isHidden}
-                  onHide={() => onHideNote(card.id)}
-                  onMoveToFolder={onMoveNoteToFolder}
-                  folders={folders}
-                  folderId={card.folderId}
-                  onSelect={
-                    onCardSelect ? () => onCardSelect(card.id) : undefined
-                  }
-                  selected={selectedNoteId === card.id}
-                />,
-              ]
-            : [],
-        )}
-      {currentView === selectedView.FOLDERS &&
-        selectedFolderId &&
-        Object.values(notes).flatMap((card) =>
-          card.folderId === selectedFolderId && !card.isTrash
-            ? [
-                <CustomCard
-                  key={card.id}
-                  id={card.id}
-                  text={card.text}
-                  category={card.category}
-                  isFav={card.isFav}
-                  onFav={() => onFavNote(card.id)}
-                  onTrash={() => onTrashNote(card.id)}
-                  isHidden={card.isHidden}
-                  onHide={() => onHideNote(card.id)}
-                  onMoveToFolder={onMoveNoteToFolder}
-                  folders={folders}
-                  folderId={card.folderId}
-                  onSelect={
-                    onCardSelect ? () => onCardSelect(card.id) : undefined
-                  }
-                  selected={selectedNoteId === card.id}
-                />,
-              ]
-            : [],
-        )}
       {currentView === selectedView.TRASH && (
-        <>
-          <ListItem disablePadding>
-            <Button
-              data-testid="empty-trash-btn"
-              onClick={onEmptyTrash}
-              sx={{
-                borderRadius: 1,
-                textTransform: "none",
-              }}
-              color="error"
-              fullWidth
-              variant="contained"
-              startIcon={<DeleteIcon />}
-              size="large"
-            >
-              Empty Trash
-            </Button>
-          </ListItem>
-          {Object.values(notes).flatMap((card) =>
-            card.isTrash
-              ? [
-                  <CustomCard
-                    key={card.id}
-                    id={card.id}
-                    text={card.text}
-                    category={card.category}
-                    isTrash={card.isTrash}
-                    onRestore={
-                      onRestoreNote ? () => onRestoreNote(card.id) : undefined
-                    }
-                    onSelect={
-                      onCardSelect ? () => onCardSelect(card.id) : undefined
-                    }
-                    selected={selectedNoteId === card.id}
-                  />,
-                ]
-              : [],
-          )}
-        </>
+        <ListItem disablePadding>
+          <Button
+            data-testid="empty-trash-btn"
+            onClick={onEmptyTrash}
+            sx={{
+              borderRadius: 1,
+              textTransform: "none",
+            }}
+            color="error"
+            fullWidth
+            variant="contained"
+            startIcon={<DeleteIcon />}
+            size="large"
+          >
+            Empty Trash
+          </Button>
+        </ListItem>
       )}
+      {visibleNotes.map((card) => (
+        <CustomCard
+          key={card.id}
+          id={card.id}
+          text={card.text}
+          category={card.category}
+          isFav={card.isFav}
+          isTrash={card.isTrash}
+          isHidden={card.isHidden}
+          onFav={() => onFavNote(card.id)}
+          onTrash={() => onTrashNote(card.id)}
+          onHide={() => onHideNote(card.id)}
+          onMoveToFolder={onMoveNoteToFolder}
+          onRestore={
+            currentView === selectedView.TRASH
+              ? () => onRestoreNote(card.id)
+              : undefined
+          }
+          folders={folders}
+          folderId={card.folderId}
+          onSelect={onCardSelect ? () => onCardSelect(card.id) : undefined}
+          selected={selectedNoteId === card.id}
+        />
+      ))}
     </>
   );
 };

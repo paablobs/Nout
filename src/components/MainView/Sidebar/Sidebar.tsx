@@ -96,6 +96,7 @@ const Sidebar = ({
                     minWidth: 0,
                     borderRadius: "50%",
                     padding: 1,
+                    marginRight: "10px",
                   }}
                 >
                   <NewNoteIcon fontSize="large" />

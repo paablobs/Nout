@@ -1,6 +1,10 @@
 .mainView {
 }
 
+.mainView__mobileToolbar {
+  display: none;
+}
+
 .mainView__gridContainer {
   height: 100dvh;
   display: flex;
@@ -22,4 +26,17 @@
 
 .mainView__rightPanel > div {
   height: 100%;
+}
+
+@media (max-width: 1024px) {
+  .mainView__mobileToolbar {
+    display: flex;
+    align-items: center;
+    min-height: 48px;
+    padding: 0 8px;
+  }
+
+  .mainView__gridContainer {
+    height: calc(100dvh - 48px);
+  }
 }

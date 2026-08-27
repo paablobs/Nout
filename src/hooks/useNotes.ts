@@ -6,58 +6,15 @@ import randomColor from "../utils/randomColor";
 import { DEFAULT_CATEGORY } from "../utils/constants";
 import { useSession } from "../contexts/SessionContext";
 import { db } from "../config/firebase";
-import {
-  collection,
-  doc,
-  type Firestore,
-  getDocs,
-  setDoc,
-  writeBatch,
-} from "firebase/firestore";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { Note, Folder } from "../repositories/types";
+import { createCloudNotesRepository } from "../repositories/cloud/CloudNotesRepository";
+import { createCloudFoldersRepository } from "../repositories/cloud/CloudFoldersRepository";
+import { getDocs, collection, type Firestore } from "firebase/firestore";
 
-const FIRESTORE_BATCH_LIMIT = 500;
 const NOTE_SAVE_DEBOUNCE_MS = 400;
-type BatchOperation = (batch: ReturnType<typeof writeBatch>) => void;
 
-const commitInBatches = async (
-  cloudDb: Firestore,
-  operations: BatchOperation[],
-) => {
-  for (
-    let index = 0;
-    index < operations.length;
-    index += FIRESTORE_BATCH_LIMIT
-  ) {
-    const batch = writeBatch(cloudDb);
-    operations
-      .slice(index, index + FIRESTORE_BATCH_LIMIT)
-      .forEach((operation) => operation(batch));
-    await batch.commit();
-  }
-};
-
-export interface Folder {
-  id: string;
-  name: string;
-  color?: string;
-}
-
-export interface Note {
-  id: string;
-  text: string;
-  category: string;
-  isFav: boolean;
-  isTrash: boolean;
-  isHidden: boolean;
-  folderId?: string;
-}
-
-const toNotesRecord = (notesList: Note[]) =>
-  Object.fromEntries(notesList.map((note) => [note.id, note])) as Record<
-    string,
-    Note
-  >;
+export type { Note, Folder };
 
 const useNotes = () => {
   const { user, loading: sessionLoading } = useSession();
@@ -75,42 +32,6 @@ const useNotes = () => {
   const [cloudNotes, setCloudNotes] = useState<Record<string, Note>>({});
   const [loading, setLoading] = useState(false);
   const noteSaveTimersRef = useRef<Record<string, number>>({});
-
-  const seedLocalDataToCloud = useEffectEvent(
-    async (
-      cloudDb: Firestore,
-      foldersRef: ReturnType<typeof collection>,
-      notesRef: ReturnType<typeof collection>,
-    ) => {
-      const [foldersSnapshot, notesSnapshot] = await Promise.all([
-        getDocs(foldersRef),
-        getDocs(notesRef),
-      ]);
-      const cloudFolderIds = new Set(
-        foldersSnapshot.docs.map((item) => item.id),
-      );
-      const cloudNoteIds = new Set(notesSnapshot.docs.map((item) => item.id));
-      const foldersToMigrate = localFolders.filter(
-        (folder) => !cloudFolderIds.has(folder.id),
-      );
-      const notesToMigrate = Object.values(localNotes).filter(
-        (note) => !cloudNoteIds.has(note.id),
-      );
-      const operations: BatchOperation[] = [
-        ...foldersToMigrate.map(
-          (folder) => (batch: ReturnType<typeof writeBatch>) =>
-            batch.set(doc(foldersRef, folder.id), folder),
-        ),
-        ...notesToMigrate.map(
-          (note) => (batch: ReturnType<typeof writeBatch>) =>
-            batch.set(doc(notesRef, note.id), note),
-        ),
-      ];
-
-      await commitInBatches(cloudDb, operations);
-      return foldersToMigrate.length > 0 || notesToMigrate.length > 0;
-    },
-  );
 
   useEffect(() => {
     Object.values(noteSaveTimersRef.current).forEach((timer) => {
@@ -130,55 +51,42 @@ const useNotes = () => {
     const userId = user.uid;
 
     void (async () => {
-      const foldersRef = collection(cloudDb, "users", userId, "folders");
-      const notesRef = collection(cloudDb, "users", userId, "notes");
+      const notesRepo = createCloudNotesRepository(cloudDb, userId);
+      const foldersRepo = createCloudFoldersRepository(cloudDb, userId);
 
       setLoading(true);
       try {
         if (controller.signal.aborted) return;
-        const [foldersSnapshot, notesSnapshot] = await Promise.all([
-          getDocs(foldersRef),
-          getDocs(notesRef),
+
+        const [cloudFoldersData, cloudNotesData] = await Promise.all([
+          foldersRepo.getAll(),
+          notesRepo.getAll(),
         ]);
-
-        if (controller.signal.aborted || !foldersSnapshot || !notesSnapshot)
-          return;
-
-        const nextFolders = foldersSnapshot.docs.map(
-          (item) => item.data() as Folder,
-        );
-        const nextNotesList = notesSnapshot.docs.map(
-          (item) => item.data() as Note,
-        );
 
         if (controller.signal.aborted) return;
 
         const didMigrate = await seedLocalDataToCloud(
           cloudDb,
-          foldersRef,
-          notesRef,
+          userId,
+          localFolders,
+          localNotes,
         );
 
         if (controller.signal.aborted) return;
 
         if (didMigrate) {
-          const [migratedFoldersSnapshot, migratedNotesSnapshot] =
-            await Promise.all([getDocs(foldersRef), getDocs(notesRef)]);
+          const [migratedFolders, migratedNotes] = await Promise.all([
+            foldersRepo.getAll(),
+            notesRepo.getAll(),
+          ]);
           if (controller.signal.aborted) return;
-
-          setCloudFolders(
-            migratedFoldersSnapshot.docs.map((item) => item.data() as Folder),
-          );
-          setCloudNotes(
-            toNotesRecord(
-              migratedNotesSnapshot.docs.map((item) => item.data() as Note),
-            ),
-          );
+          setCloudFolders(migratedFolders);
+          setCloudNotes(migratedNotes);
           return;
         }
 
-        setCloudFolders(nextFolders);
-        setCloudNotes(toNotesRecord(nextNotesList));
+        setCloudFolders(cloudFoldersData);
+        setCloudNotes(cloudNotesData);
       } catch (error) {
         console.error("Failed to load cloud notes", error);
       } finally {
@@ -198,12 +106,14 @@ const useNotes = () => {
 
   const upsertCloudNote = async (note: Note) => {
     if (!user || !db) return;
-    await setDoc(doc(db, "users", user.uid, "notes", note.id), note);
+    const repo = createCloudNotesRepository(db, user.uid);
+    await repo.upsert(note);
   };
 
   const upsertCloudFolder = async (folder: Folder) => {
     if (!user || !db) return;
-    await setDoc(doc(db, "users", user.uid, "folders", folder.id), folder);
+    const repo = createCloudFoldersRepository(db, user.uid);
+    await repo.upsert(folder);
   };
 
   const scheduleCloudNoteSave = (note: Note) => {
@@ -301,24 +211,23 @@ const useNotes = () => {
 
       void (async () => {
         try {
-          const operations: BatchOperation[] = [
-            (batch) =>
-              batch.delete(doc(cloudDb, "users", userId, "folders", id)),
-          ];
-          affectedNoteIds.forEach((noteId) => {
-            const note = updatedNotes[noteId];
-            if (note) {
+          const notesRepo = createCloudNotesRepository(cloudDb, userId);
+          const foldersRepo = createCloudFoldersRepository(cloudDb, userId);
+
+          await foldersRepo.remove(id);
+
+          const notesToUpdate = affectedNoteIds
+            .map((noteId) => updatedNotes[noteId])
+            .filter(Boolean)
+            .map((note) => {
               const noteData = { ...note };
               delete noteData.folderId;
-              operations.push((batch) =>
-                batch.set(
-                  doc(cloudDb, "users", userId, "notes", noteId),
-                  noteData,
-                ),
-              );
-            }
-          });
-          await commitInBatches(cloudDb, operations);
+              return noteData;
+            });
+
+          if (notesToUpdate.length > 0) {
+            await notesRepo.upsertBatch(notesToUpdate);
+          }
         } catch (error) {
           console.error("Failed to delete folder", error);
         }
@@ -380,10 +289,8 @@ const useNotes = () => {
         setCloudNotes(updatedNotes);
         void (async () => {
           try {
-            const operations: BatchOperation[] = ids.map((id) => (batch) => {
-              batch.delete(doc(cloudDb, "users", userId, "notes", id));
-            });
-            await commitInBatches(cloudDb, operations);
+            const notesRepo = createCloudNotesRepository(cloudDb, userId);
+            await notesRepo.removeBatch(ids);
           } catch (error) {
             console.error("Failed to permanently delete notes", error);
           }
@@ -405,19 +312,11 @@ const useNotes = () => {
         setCloudNotes(updatedNotes);
         void (async () => {
           try {
-            const operations: BatchOperation[] = [];
-            ids.forEach((id) => {
-              const nextNote = updatedNotes[id];
-              if (nextNote) {
-                operations.push((batch) => {
-                  batch.set(
-                    doc(cloudDb, "users", userId, "notes", id),
-                    nextNote,
-                  );
-                });
-              }
-            });
-            await commitInBatches(cloudDb, operations);
+            const notesRepo = createCloudNotesRepository(cloudDb, userId);
+            const notesToUpdate = ids
+              .map((id) => updatedNotes[id])
+              .filter(Boolean);
+            await notesRepo.upsertBatch(notesToUpdate);
           } catch (error) {
             console.error("Failed to move notes to trash", error);
           }
@@ -495,5 +394,46 @@ const useNotes = () => {
     hideNote,
   };
 };
+
+async function seedLocalDataToCloud(
+  cloudDb: Firestore,
+  userId: string,
+  localFolders: Folder[],
+  localNotes: Record<string, Note>,
+): Promise<boolean> {
+  const foldersRef = collection(cloudDb, "users", userId, "folders");
+  const notesRef = collection(cloudDb, "users", userId, "notes");
+
+  const [foldersSnapshot, notesSnapshot] = await Promise.all([
+    getDocs(foldersRef),
+    getDocs(notesRef),
+  ]);
+
+  const cloudFolderIds = new Set(foldersSnapshot.docs.map((item) => item.id));
+  const cloudNoteIds = new Set(notesSnapshot.docs.map((item) => item.id));
+
+  const foldersToMigrate = localFolders.filter(
+    (folder) => !cloudFolderIds.has(folder.id),
+  );
+  const notesToMigrate = Object.values(localNotes).filter(
+    (note) => !cloudNoteIds.has(note.id),
+  );
+
+  if (foldersToMigrate.length === 0 && notesToMigrate.length === 0) {
+    return false;
+  }
+
+  const notesRepo = createCloudNotesRepository(cloudDb, userId);
+  const foldersRepo = createCloudFoldersRepository(cloudDb, userId);
+
+  if (foldersToMigrate.length > 0) {
+    await foldersRepo.upsertBatch(foldersToMigrate);
+  }
+  if (notesToMigrate.length > 0) {
+    await notesRepo.upsertBatch(notesToMigrate);
+  }
+
+  return true;
+}
 
 export default useNotes;
