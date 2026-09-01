@@ -31,7 +31,7 @@ This is not a style guide — it is a _mental architecture guide_.
 - **Vitest** for unit/integration tests
 - **Playwright** for E2E tests
 - **Firebase Emulators** for Firestore security rules tests
-- Run: `pnpm test` (Firebase), `pnpm test:e2e` (Playwright)
+- Run: `pnpm test` (unit + Firebase), `pnpm test:unit` (unit only), `pnpm test:e2e` (Playwright)
 
 ### Pre-commit Hooks
 

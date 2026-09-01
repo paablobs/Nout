@@ -24,10 +24,11 @@ import type { RulesTestEnvironment } from "@firebase/rules-unit-testing";
 const VALID_NOTE = {
   id: "n1",
   text: "hello",
-  category: "Notes",
   isFav: false,
   isTrash: false,
   isHidden: false,
+  createdAt: 1000,
+  updatedAt: 2000,
 };
 
 const VALID_FOLDER = {
@@ -318,9 +319,14 @@ describe("Firestore aggressive security tests", () => {
       await assertFails(aliceDb().doc("users/alice/notes/n1").set(noText));
     });
 
-    it("rejects note without category", async () => {
-      const noCat = omit(VALID_NOTE, "category");
-      await assertFails(aliceDb().doc("users/alice/notes/n1").set(noCat));
+    it("rejects note without createdAt", async () => {
+      const no = omit(VALID_NOTE, "createdAt");
+      await assertFails(aliceDb().doc("users/alice/notes/n1").set(no));
+    });
+
+    it("rejects note without updatedAt", async () => {
+      const no = omit(VALID_NOTE, "updatedAt");
+      await assertFails(aliceDb().doc("users/alice/notes/n1").set(no));
     });
 
     it("rejects note without isFav", async () => {
@@ -380,11 +386,27 @@ describe("Firestore aggressive security tests", () => {
       );
     });
 
-    it("rejects note with array category", async () => {
+    it("rejects note with string createdAt", async () => {
       await assertFails(
         aliceDb()
           .doc("users/alice/notes/n1")
-          .set({ ...VALID_NOTE, category: ["Notes"] }),
+          .set({ ...VALID_NOTE, createdAt: "1000" }),
+      );
+    });
+
+    it("rejects note with boolean updatedAt", async () => {
+      await assertFails(
+        aliceDb()
+          .doc("users/alice/notes/n1")
+          .set({ ...VALID_NOTE, updatedAt: true }),
+      );
+    });
+
+    it("rejects note where updatedAt precedes createdAt", async () => {
+      await assertFails(
+        aliceDb()
+          .doc("users/alice/notes/n1")
+          .set({ ...VALID_NOTE, updatedAt: VALID_NOTE.createdAt - 1 }),
       );
     });
 
@@ -490,27 +512,27 @@ describe("Firestore aggressive security tests", () => {
       );
     });
 
-    it("rejects note with empty category", async () => {
-      await assertFails(
-        aliceDb()
-          .doc("users/alice/notes/n1")
-          .set({ ...VALID_NOTE, category: "" }),
-      );
-    });
-
-    it("rejects note with category exceeding 100 chars", async () => {
-      await assertFails(
-        aliceDb()
-          .doc("users/alice/notes/n1")
-          .set({ ...VALID_NOTE, category: "c".repeat(101) }),
-      );
-    });
-
-    it("allows note with category at exactly 100 chars", async () => {
+    it("allows note with a valid trashedAt", async () => {
       await assertSucceeds(
         aliceDb()
           .doc("users/alice/notes/n1")
-          .set({ ...VALID_NOTE, category: "c".repeat(100) }),
+          .set({ ...VALID_NOTE, isTrash: true, trashedAt: 3000 }),
+      );
+    });
+
+    it("rejects note with a string trashedAt", async () => {
+      await assertFails(
+        aliceDb()
+          .doc("users/alice/notes/n1")
+          .set({ ...VALID_NOTE, trashedAt: "3000" }),
+      );
+    });
+
+    it("rejects note with a legacy category field", async () => {
+      await assertFails(
+        aliceDb()
+          .doc("users/alice/notes/n1")
+          .set({ ...VALID_NOTE, category: "Notes" }),
       );
     });
 
@@ -889,11 +911,12 @@ describe("Firestore aggressive security tests", () => {
       });
       batch.set(db.doc("users/alice/notes/bad"), {
         id: "bad",
-        text: 42, // invalid type
-        category: "x",
+        text: 42,
         isFav: false,
         isTrash: false,
         isHidden: false,
+        createdAt: 1000,
+        updatedAt: 2000,
       });
       await assertFails(batch.commit());
     });
@@ -956,11 +979,11 @@ describe("Firestore aggressive security tests", () => {
       );
     });
 
-    it("rejects note with very long category (injection attempt)", async () => {
-      await assertFails(
+    it("rejects note with very long trashedAt number injection", async () => {
+      await assertSucceeds(
         aliceDb()
           .doc("users/alice/notes/n1")
-          .set({ ...VALID_NOTE, category: "a".repeat(200) }),
+          .set({ ...VALID_NOTE, trashedAt: Number.MAX_SAFE_INTEGER }),
       );
     });
 

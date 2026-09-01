@@ -7,6 +7,16 @@ import {
 } from "@firebase/rules-unit-testing";
 import type { RulesTestEnvironment } from "@firebase/rules-unit-testing";
 
+const VALID_NOTE = {
+  id: "n1",
+  text: "first note",
+  isFav: false,
+  isTrash: false,
+  isHidden: false,
+  createdAt: 1000,
+  updatedAt: 2000,
+};
+
 describe("Firestore security rules", () => {
   let testEnv: RulesTestEnvironment;
 
@@ -39,32 +49,14 @@ describe("Firestore security rules", () => {
     const ref = db.doc("users/alice/notes/n1");
 
     await assertFails(ref.get());
-    await assertFails(
-      ref.set({
-        id: "n1",
-        text: "hola",
-        category: "Notes",
-        isFav: false,
-        isTrash: false,
-        isHidden: false,
-      }),
-    );
+    await assertFails(ref.set(VALID_NOTE));
   });
 
   it("allows owner to write/read a valid note", async () => {
     const db = testEnv.authenticatedContext("alice").firestore();
     const ref = db.doc("users/alice/notes/n1");
 
-    await assertSucceeds(
-      ref.set({
-        id: "n1",
-        text: "first note",
-        category: "Notes",
-        isFav: false,
-        isTrash: false,
-        isHidden: false,
-      }),
-    );
+    await assertSucceeds(ref.set(VALID_NOTE));
 
     await assertSucceeds(ref.get());
   });
@@ -73,57 +65,28 @@ describe("Firestore security rules", () => {
     const db = testEnv.authenticatedContext("alice").firestore();
     const ref = db.doc("users/alice/notes/n1");
 
-    await assertFails(
-      ref.set({
-        id: "n1",
-        text: 10,
-        category: "Notes",
-        isFav: false,
-        isTrash: false,
-        isHidden: false,
-      }),
-    );
+    await assertFails(ref.set({ ...VALID_NOTE, text: 10 }));
+
+    await assertFails(ref.set({ ...VALID_NOTE, isAdmin: true }));
+
+    await assertFails(ref.set({ ...VALID_NOTE, createdAt: "1000" }));
 
     await assertFails(
-      ref.set({
-        id: "n1",
-        text: "ok",
-        category: "Notes",
-        isFav: false,
-        isTrash: false,
-        isHidden: false,
-        isAdmin: true,
-      }),
+      ref.set({ ...VALID_NOTE, updatedAt: VALID_NOTE.createdAt - 1 }),
     );
   });
 
   it("denies cross-user read and write", async () => {
     await testEnv.withSecurityRulesDisabled(async (context) => {
       const seedDb = context.firestore();
-      await seedDb.doc("users/alice/notes/n1").set({
-        id: "n1",
-        text: "private",
-        category: "Notes",
-        isFav: false,
-        isTrash: false,
-        isHidden: false,
-      });
+      await seedDb.doc("users/alice/notes/n1").set(VALID_NOTE);
     });
 
     const bobDb = testEnv.authenticatedContext("bob").firestore();
     const aliceRef = bobDb.doc("users/alice/notes/n1");
 
     await assertFails(aliceRef.get());
-    await assertFails(
-      aliceRef.set({
-        id: "n1",
-        text: "hacked",
-        category: "Notes",
-        isFav: false,
-        isTrash: false,
-        isHidden: false,
-      }),
-    );
+    await assertFails(aliceRef.set({ ...VALID_NOTE, text: "hacked" }));
   });
 
   it("allows owner CRUD for folders", async () => {

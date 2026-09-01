@@ -4,18 +4,21 @@
 
 Nout is a compact, offline-first note-taking web app built with React, TypeScript and Vite. It combines a lightweight local-first data layer with a polished UI and a rich-text editor (TipTap) so you can create, organize and edit notes with no backend required.
 
-Features
+## Features
 
-- Rich-text editor (TipTap) with typography and highlight extensions
-- Scratchpad for quick ephemeral notes
+- Rich-text editor (TipTap) with typography, highlight and code-block extensions
+- Scratchpad for quick notes that saves automatically and syncs when signed in
 - Create, rename and delete folders
 - Mark notes as favorites
-- Trash with restore and Empty Trash
+- Hide sensitive notes from the All-notes list (they stay visible inside their folder)
+- Search within the current view
+- Notes carry created/edited timestamps and lists sort by most recent edit
+- Trash with restore, per-note trashed dates and automatic purge after 30 days
 - Per-note HTML storage (TipTap) with safe previews in the note list
 - Local persistence via a robust `useLocalStorage` hook (syncs across tabs)
-- Optional Firebase cloud sync for notes, folders and scratchpad
+- Optional Firebase cloud sync for notes, folders and scratchpad with live updates
 
-Quick start
+## Quick start
 
 1. Install dependencies:
 
@@ -41,26 +44,22 @@ pnpm build
 pnpm preview
 ```
 
-Firebase cloud mode (optional)
+Node.js 24 (see `.nvmrc`) is required. Java 21+ is additionally required to run the Firebase emulators for tests.
 
-1. Copy environment variables:
+## Firebase cloud mode (optional)
 
-```bash
-cp .env.example .env
-```
-
-2. Fill all `VITE_FIREBASE_*` values in `.env` from your Firebase Web app settings.
-
-3. Start the app and click `Connect cloud` in the sidebar.
+The Firebase web config is bundled with the app, so cloud mode works out of the box after cloning. Start the app and click `Sign in with Google` in the sidebar.
 
 Cloud behavior
 
 - Without cloud connection: data is stored in localStorage (offline-first behavior)
-- With cloud connection: notes, folders and scratchpad are persisted in Firestore
-- Firestore offline persistence is enabled using IndexedDB multi-tab cache
+- With cloud connection: notes, folders and scratchpad live in Firestore and update live across devices through `onSnapshot` listeners
+- On first sign-in, notes and folders that only exist locally are copied to the cloud. When the same note exists on both sides, the most recently edited version wins
+- Firestore offline persistence is enabled using IndexedDB multi-tab cache, so signed-in users keep working offline and changes sync when back online
 - Auth persistence uses browser local persistence so sessions survive browser restart
+- If a popup sign-in is blocked (common in mobile in-app browsers), the app falls back to redirect-based sign-in
 
-Security rules
+### Security rules
 
 - The included `firestore.rules` restricts reads/writes to each authenticated user namespace: `users/{uid}/...`
 - Deploy rules with:
@@ -69,18 +68,19 @@ Security rules
 pnpm exec firebase-tools@latest deploy --only firestore:rules
 ```
 
-Firebase security tests (emulator)
+## Tests
 
-- Tests are executed against Firebase Auth + Firestore emulators.
-- Java 21+ is required by current Firestore Emulator.
+### Unit tests (Vitest)
 
-Run all Firebase tests:
+Pure data-layer logic: note schema normalization, sign-in migration planning, trash purge selection, note transforms, search and sorting.
 
 ```bash
-pnpm test
+pnpm test:unit
 ```
 
-or explicitly:
+### Firebase security and integration tests (emulator)
+
+Tests are executed against Firebase Auth + Firestore emulators. Java 21+ is required by the current Firestore Emulator.
 
 ```bash
 pnpm test:firebase
@@ -92,13 +92,13 @@ Covered scenarios:
 - Firestore rules deny unauthenticated access
 - Firestore rules allow owner CRUD for notes/folders/scratchpad
 - Firestore rules deny cross-user access
-- Firestore rules deny invalid schema writes
+- Firestore rules deny invalid schema writes (wrong types, extra fields, timestamp inconsistencies)
+- Cloud repositories round-trip notes and folders against the emulator
+- Repository writes converge through `onSnapshot` listeners
 
-E2E tests (Playwright)
+### E2E tests (Playwright)
 
 Browser-based end-to-end tests that run against the Vite dev server with Chromium.
-
-Run Playwright tests:
 
 ```bash
 pnpm test:e2e
@@ -116,23 +116,34 @@ Covered scenarios:
 
 - Navigation between views (Notes, Favorites, Trash, Scratchpad, Folders)
 - Creating, editing, favoriting, trashing, and restoring notes
-- Hiding notes from the Notes view
-- Creating and deleting folders
+- Hiding notes from the Notes view and finding them inside their folder
+- Creating, renaming and deleting folders
 - Moving notes between folders
 - Emptying the trash with confirmation
 - Scratchpad editing and localStorage persistence
 - Favorites view filtering
+- Search filtering, empty-result states, and hidden-note search semantics
+- Empty states for every view
 
-Tests operate in offline-only mode using seeded localStorage data — no Firebase emulator required.
+Tests operate in offline-only mode using seeded localStorage data. No Firebase emulator required.
 
-Helpful scripts
+Run the full suite (unit + firebase):
+
+```bash
+pnpm test
+```
+
+## Helpful scripts
 
 - `pnpm lint` — run oxlint
 - `pnpm format` — format files with oxfmt
+- `pnpm format:check` — check formatting without modifying
 
-Core ideas / architecture
+## Core ideas / architecture
 
 - React + TypeScript + Vite for a fast developer experience
 - MUI (Material UI) for consistent UI components
 - TipTap for WYSIWYG editing; notes are stored as HTML strings
+- The data layer is split by mode: anonymous users read and write through localStorage-backed repositories, signed-in users through Firestore repositories. Either way, state arrives in React through one subscription per store and mutations go through the repository seam
 - `useLocalStorage` provides a React-friendly interface to localStorage with cross-tab update dispatching
+- Errors surface in a snackbar instead of dying in the console
