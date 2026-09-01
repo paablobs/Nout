@@ -9,10 +9,12 @@ export const storageKeys = {
 export interface SeedNote {
   id: string;
   text: string;
-  category: string;
   isFav: boolean;
   isTrash: boolean;
   isHidden: boolean;
+  createdAt: number;
+  updatedAt: number;
+  trashedAt?: number;
   folderId?: string;
 }
 
@@ -58,10 +60,11 @@ export function makeNote(overrides: Partial<SeedNote> = {}): SeedNote {
   return {
     id,
     text: "",
-    category: "Notes",
     isFav: false,
     isTrash: false,
     isHidden: false,
+    createdAt: 0,
+    updatedAt: 0,
     ...overrides,
   };
 }

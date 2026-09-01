@@ -18,21 +18,19 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import { alpha } from "@mui/material";
 
-import {
-  DEFAULT_CATEGORY,
-  isDefaultCategory,
-  toDisplayCategory,
-} from "../../utils/constants";
+import { DEFAULT_CATEGORY } from "../../utils/constants";
 import { getPreviewText } from "../../utils/notePreview";
+import { formatRelativeTime } from "../../utils/formatRelativeTime";
 import "./Card.css";
 
 interface CustomCardProps {
   id: string;
   text: string;
-  category: string;
   isFav?: boolean;
   isTrash?: boolean;
   isHidden?: boolean;
+  updatedAt: number;
+  trashedAt?: number;
   onFav?: (id: string) => void;
   onTrash?: (id: string) => void;
   onRestore?: (id: string) => void;
@@ -47,10 +45,11 @@ interface CustomCardProps {
 const CustomCard = ({
   id,
   text,
-  category,
   isFav,
   isTrash,
   isHidden,
+  updatedAt,
+  trashedAt,
   onFav,
   onTrash,
   onRestore,
@@ -133,6 +132,17 @@ const CustomCard = ({
     </PopupState>
   );
 
+  const folderLabel =
+    folders?.find((folder) => folder.id === folderId)?.name ?? DEFAULT_CATEGORY;
+  const editedLabel = formatRelativeTime(updatedAt);
+  const metaLine = isTrash
+    ? trashedAt
+      ? `Trashed ${formatRelativeTime(trashedAt)}`
+      : "Trashed"
+    : editedLabel
+      ? `${folderLabel} · edited ${editedLabel}`
+      : folderLabel;
+
   return (
     <Box className="box" data-testid={`note-card-${id}`}>
       <Card
@@ -153,7 +163,7 @@ const CustomCard = ({
             {getPreviewText(text)}
           </Typography>
           <Typography variant="body2" className="box__text">
-            {toDisplayCategory(category)}
+            {metaLine}
           </Typography>
         </CardContent>
         <CardActions>
@@ -173,7 +183,7 @@ const CustomCard = ({
                 )}
               </IconButton>
               {moveToFolderPopup()}
-              {!isDefaultCategory(category) ? hideFromAllNotesPopup() : null}
+              {folderId ? hideFromAllNotesPopup() : null}
               <IconButton
                 data-testid={`trash-btn-${id}`}
                 aria-label="Move note to trash"

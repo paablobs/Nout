@@ -14,6 +14,10 @@ service cloud.firestore {
       return !(field in data) || (data[field] is string && data[field].size() <= maxLen);
     }
 
+    function hasOptionalNumber(data, field) {
+      return !(field in data) || data[field] is number;
+    }
+
     function isValidFolder(folderId) {
       return request.resource.data.keys().hasAll(["id", "name"])
         && request.resource.data.keys().hasOnly(["id", "name", "color"])
@@ -29,31 +33,35 @@ service cloud.firestore {
       return request.resource.data.keys().hasAll([
           "id",
           "text",
-          "category",
           "isFav",
           "isTrash",
-          "isHidden"
+          "isHidden",
+          "createdAt",
+          "updatedAt"
         ])
         && request.resource.data.keys().hasOnly([
           "id",
           "text",
-          "category",
           "isFav",
           "isTrash",
           "isHidden",
-          "folderId"
+          "createdAt",
+          "updatedAt",
+          "folderId",
+          "trashedAt"
         ])
         && request.resource.data.id is string
         && request.resource.data.id == noteId
         && request.resource.data.text is string
         && request.resource.data.text.size() <= 50000
-        && request.resource.data.category is string
-        && request.resource.data.category.size() > 0
-        && request.resource.data.category.size() <= 100
         && request.resource.data.isFav is bool
         && request.resource.data.isTrash is bool
         && request.resource.data.isHidden is bool
-        && hasOptionalString(request.resource.data, "folderId", 128);
+        && request.resource.data.createdAt is number
+        && request.resource.data.updatedAt is number
+        && request.resource.data.updatedAt >= request.resource.data.createdAt
+        && hasOptionalString(request.resource.data, "folderId", 128)
+        && hasOptionalNumber(request.resource.data, "trashedAt");
     }
 
     function isValidScratchpad() {
