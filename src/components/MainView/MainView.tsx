@@ -1,6 +1,17 @@
-import { useMemo, useState } from "react";
-import { Drawer, Grid, IconButton, useMediaQuery } from "@mui/material";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Chip,
+  Drawer,
+  Grid,
+  IconButton,
+  Menu,
+  MenuItem,
+  Typography,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
+import PersonIcon from "@mui/icons-material/Person";
 
 import useNotes, { type Note } from "../../hooks/useNotes";
 import { selectedView, type SelectedView } from "../../utils/selectedView";
@@ -23,7 +34,10 @@ import SignOutDialog from "./SignOutDialog/SignOutDialog";
 import SearchNotesField from "./SearchNotesField/SearchNotesField";
 import Sidebar from "./Sidebar/Sidebar";
 import FolderView from "./FolderView/FolderView";
+import FolderList from "./FolderList/FolderList";
 import { NoteEditorPanel } from "./NoteEditorPanel/NoteEditorPanel";
+import BottomNav from "./BottomNav/BottomNav";
+import FabNewNote from "./FabNewNote/FabNewNote";
 import { useScratchpad } from "./hooks/useScratchpad";
 import { useViewState } from "./hooks/useViewState";
 import { useDialogs } from "./hooks/useDialogs";
@@ -56,7 +70,9 @@ const resolveEffectiveSelectedNoteId = (
 };
 
 const MainView = () => {
-  const isMobile = useMediaQuery("(max-width:1024px)");
+  const theme = useTheme();
+  const isBelowDesktop = useMediaQuery(theme.breakpoints.down("md"));
+  const isPhone = useMediaQuery(theme.breakpoints.down("sm"));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const { state: viewState, dispatch: viewDispatch } = useViewState();
@@ -98,6 +114,10 @@ const MainView = () => {
 
   const scratchpad = useScratchpad();
   const offline = useOfflineStatus();
+  const [accountAnchor, setAccountAnchor] = useState<null | HTMLElement>(null);
+
+  const viewStateRef = useRef(viewState);
+  viewStateRef.current = viewState;
 
   const effectiveSelectedNoteId = useMemo(
     () =>
@@ -129,17 +149,97 @@ const MainView = () => {
       ).length
     : 0;
 
+  const isTablet = isBelowDesktop && !isPhone;
+
+  // Phone drill-down: editor visible only when a note is selected or scratchpad
+  const showEditorOnPhone =
+    isPhone &&
+    (Boolean(effectiveSelectedNoteId) ||
+      currentView === selectedView.SCRATCHPAD);
+  const showList =
+    !showEditorOnPhone && currentView !== selectedView.SCRATCHPAD;
+  const showFolderList =
+    isPhone && currentView === selectedView.FOLDERS && !selectedFolderId;
+
+  // Editor title for the phone AppBar
+  const editorTitle = useMemo(() => {
+    if (currentView === selectedView.SCRATCHPAD) return "Scratchpad";
+    if (currentView === selectedView.TRASH) return "Trash";
+    if (selectedNote?.folderId) {
+      const folder = folders.find((f) => f.id === selectedNote.folderId);
+      return folder?.name ?? "Notes";
+    }
+    return "Notes";
+  }, [currentView, selectedNote, folders]);
+
+  // View title for the phone top bar
+  const viewTitle = useMemo(() => {
+    if (currentView === selectedView.SCRATCHPAD) return "Scratchpad";
+    if (currentView === selectedView.TRASH) return "Trash";
+    if (currentView === selectedView.NOTES) return "Notes";
+    if (currentView === selectedView.FAVORITES) return "Favorites";
+    if (currentView === selectedView.FOLDERS && selectedFolderId) {
+      const folder = folders.find((f) => f.id === selectedFolderId);
+      return folder?.name ?? "Folders";
+    }
+    return "Folders";
+  }, [currentView, selectedFolderId, folders]);
+
+  // History API for phone drill-down
+  useEffect(() => {
+    if (!isPhone) return;
+    const handlePop = () => {
+      const {
+        selectedNoteId: noteId,
+        selectedFolderId: folderId,
+        currentView: view,
+      } = viewStateRef.current;
+      if (noteId) {
+        viewDispatch({ type: "noteSelect", noteId: null });
+      } else if (folderId && view === selectedView.FOLDERS) {
+        viewDispatch({ type: "clearFolderSelection" });
+      }
+    };
+    window.addEventListener("popstate", handlePop);
+    return () => window.removeEventListener("popstate", handlePop);
+  }, [isPhone, viewDispatch]);
+
   const handleNewNote = () => {
     if (loading) return;
     const noteId = addNote(currentView, selectedFolderId || undefined);
     viewDispatch({ type: "noteSelect", noteId });
+    if (isPhone) {
+      history.pushState({ noteId }, "");
+    }
   };
+
+  const handleNoteSelect = useCallback(
+    (noteId: string) => {
+      viewDispatch({ type: "noteSelect", noteId });
+      if (isPhone) {
+        history.pushState({ noteId }, "");
+      }
+    },
+    [viewDispatch, isPhone],
+  );
 
   const handleEditorChange = (value: string) => {
     if (currentView === selectedView.SCRATCHPAD) {
       scratchpad.setValue(value);
     } else if (effectiveSelectedNoteId) {
       updateNoteText(effectiveSelectedNoteId, value);
+    }
+  };
+
+  const handleEditorBack = () => {
+    history.back();
+  };
+
+  const handleEditorTrash = () => {
+    if (effectiveSelectedNoteId) {
+      deleteNotes([effectiveSelectedNoteId]);
+      viewDispatch({ type: "noteSelect", noteId: null });
+      if (isPhone) history.back();
     }
   };
 
@@ -171,12 +271,15 @@ const MainView = () => {
 
   const handleViewChange = (view: SelectedView) => {
     viewDispatch({ type: "viewChange", view });
+    viewDispatch({ type: "noteSelect", noteId: null });
     setSearchQuery("");
     closeMobileMenu();
   };
 
   const handleFolderSelect = (folderId: string) => {
     viewDispatch({ type: "folderSelect", folderId });
+    viewDispatch({ type: "noteSelect", noteId: null });
+    if (isPhone) history.pushState({ folderId }, "");
     setSearchQuery("");
     closeMobileMenu();
   };
@@ -190,7 +293,7 @@ const MainView = () => {
 
   return (
     <div className="mainView">
-      {isMobile && (
+      {isTablet && (
         <div className="mainView__mobileToolbar">
           <IconButton
             aria-label="Open navigation menu"
@@ -202,7 +305,48 @@ const MainView = () => {
           </IconButton>
         </div>
       )}
-      {isMobile && (
+      {isPhone && !showEditorOnPhone && (
+        <div className="mainView__phoneToolbar">
+          <Typography variant="subtitle1" sx={{ flex: 1, fontWeight: 600 }}>
+            {viewTitle}
+          </Typography>
+          {Boolean(user) && offline && (
+            <Chip label="Offline" size="small" color="warning" sx={{ mr: 1 }} />
+          )}
+          <IconButton
+            aria-label="Account"
+            onClick={(e) => setAccountAnchor(e.currentTarget)}
+            size="small"
+          >
+            <PersonIcon />
+          </IconButton>
+          <Menu
+            anchorEl={accountAnchor}
+            open={Boolean(accountAnchor)}
+            onClose={() => setAccountAnchor(null)}
+          >
+            {user?.email && <MenuItem disabled>{user.email}</MenuItem>}
+            {!user && (
+              <MenuItem disabled>
+                Notes are stored in this browser only.
+              </MenuItem>
+            )}
+            <MenuItem
+              onClick={() => {
+                setAccountAnchor(null);
+                if (user) {
+                  dialogDispatch({ type: "openSignOut" });
+                } else {
+                  void signIn();
+                }
+              }}
+            >
+              {user ? "Sign out" : "Sign in with Google"}
+            </MenuItem>
+          </Menu>
+        </div>
+      )}
+      {isTablet && (
         <Drawer
           id="mobile-navigation"
           anchor="left"
@@ -241,8 +385,8 @@ const MainView = () => {
         </Drawer>
       )}
       <Grid container spacing={3} className="mainView__gridContainer">
-        {!isMobile && (
-          <Grid width={300}>
+        {!isBelowDesktop && (
+          <Grid sx={{ width: 300 }}>
             <div className="mainView__leftPanel">
               <Sidebar
                 currentView={currentView}
@@ -269,36 +413,59 @@ const MainView = () => {
             </div>
           </Grid>
         )}
-        {currentView !== selectedView.SCRATCHPAD && (
+        {showList && (
           <Grid
-            maxWidth={400}
+            sx={{ maxWidth: isPhone ? "100%" : 400 }}
             className="mainView__middlePanel"
             gap={1}
             padding={1}
             paddingX={0}
           >
-            {isSearchable && (
-              <SearchNotesField value={searchQuery} onChange={setSearchQuery} />
+            {showFolderList ? (
+              <FolderList
+                folders={folders}
+                onFolderSelect={(id) => {
+                  viewDispatch({ type: "folderSelect", folderId: id });
+                  if (isPhone) history.pushState({ folderId: id }, "");
+                }}
+                onRenameFolder={(folder) =>
+                  dialogDispatch({ type: "openRenameFolder", folder })
+                }
+                onDeleteFolder={(folder) =>
+                  dialogDispatch({ type: "openDeleteFolder", folder })
+                }
+              />
+            ) : (
+              <>
+                {isSearchable && (
+                  <SearchNotesField
+                    value={searchQuery}
+                    onChange={setSearchQuery}
+                    sticky={isPhone}
+                  />
+                )}
+                <FolderView
+                  loading={loading}
+                  currentView={currentView}
+                  notes={listedNotes}
+                  folders={folders}
+                  selectedNoteId={effectiveSelectedNoteId}
+                  searchQuery={searchQuery}
+                  signedOut={!user}
+                  compact={isPhone}
+                  onFavNote={addFavorite}
+                  onTrashNote={handleTrashNote}
+                  onMoveNoteToFolder={moveNoteToFolder}
+                  onRestoreNote={restoreNote}
+                  onCardSelect={handleNoteSelect}
+                  onEmptyTrash={() =>
+                    dialogDispatch({ type: "openEmptyTrash" })
+                  }
+                  onHideNote={hideNote}
+                  onNewNote={handleNewNote}
+                />
+              </>
             )}
-            <FolderView
-              loading={loading}
-              currentView={currentView}
-              notes={listedNotes}
-              folders={folders}
-              selectedNoteId={effectiveSelectedNoteId}
-              searchQuery={searchQuery}
-              signedOut={!user}
-              onFavNote={addFavorite}
-              onTrashNote={handleTrashNote}
-              onMoveNoteToFolder={moveNoteToFolder}
-              onRestoreNote={restoreNote}
-              onCardSelect={(noteId) =>
-                viewDispatch({ type: "noteSelect", noteId })
-              }
-              onEmptyTrash={() => dialogDispatch({ type: "openEmptyTrash" })}
-              onHideNote={hideNote}
-              onNewNote={handleNewNote}
-            />
           </Grid>
         )}
         <NoteEditorPanel
@@ -308,15 +475,29 @@ const MainView = () => {
           selectedNote={selectedNote}
           effectiveSelectedNoteId={effectiveSelectedNoteId}
           onChange={handleEditorChange}
+          isPhone={isPhone}
+          onBack={handleEditorBack}
+          editorTitle={editorTitle}
+          onTrash={
+            currentView !== selectedView.TRASH ? handleEditorTrash : undefined
+          }
         />
       </Grid>
+      {isPhone && !showEditorOnPhone && (
+        <BottomNav currentView={currentView} onViewChange={handleViewChange} />
+      )}
+      {isPhone && !showEditorOnPhone && currentView !== selectedView.TRASH && (
+        <FabNewNote onClick={handleNewNote} visible={true} />
+      )}
       <CreateFolderDialog
         isOpen={openCreateFolder}
+        fullScreen={isPhone}
         onAddFolder={addFolder}
         onClose={() => dialogDispatch({ type: "closeCreateFolder" })}
       />
       <DeleteFolderDialog
         isOpen={openDeleteFolder}
+        fullScreen={isPhone}
         folderName={folderToDelete?.name}
         noteCount={folderNoteCount}
         onDeleteFolder={handleConfirmDeleteFolder}
@@ -324,6 +505,7 @@ const MainView = () => {
       />
       <EmptyTrashDialog
         isOpen={openEmptyTrash}
+        fullScreen={isPhone}
         onEmptyTrash={handleEmptyTrash}
         onClose={() => dialogDispatch({ type: "closeEmptyTrash" })}
       />
@@ -332,12 +514,14 @@ const MainView = () => {
           folderToRename ? `${folderToRename.id}:${openRenameFolder}` : "closed"
         }
         isOpen={openRenameFolder}
+        fullScreen={isPhone}
         initialName={folderToRename?.name ?? ""}
         onRename={handleRenameFolder}
         onClose={() => dialogDispatch({ type: "closeRenameFolder" })}
       />
       <SignOutDialog
         isOpen={openSignOut}
+        fullScreen={isPhone}
         onConfirm={handleConfirmSignOut}
         onClose={() => dialogDispatch({ type: "closeSignOut" })}
       />

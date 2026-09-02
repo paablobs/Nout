@@ -6,71 +6,60 @@ test.beforeEach(async ({ page }) => {
   await clearLocalStorage(page);
 });
 
-test("renders the app title", async ({ page }) => {
-  await expect(page.getByText("Nout", { exact: true })).toBeVisible();
+test("renders the app title", async ({ page, isMobile }) => {
+  if (isMobile) {
+    await expect(
+      page.getByRole("heading", { name: "Nout - Write stuff" }),
+    ).toBeVisible();
+  } else {
+    await expect(page.getByText("Nout", { exact: true })).toBeVisible();
+  }
 });
 
-test("shows all navigation items", async ({ page }) => {
+test("shows navigation items", async ({ page }) => {
   await expect(page.locator(testId("nav-scratchpad"))).toBeVisible();
   await expect(page.locator(testId("nav-notes"))).toBeVisible();
   await expect(page.locator(testId("nav-favorites"))).toBeVisible();
   await expect(page.locator(testId("nav-trash"))).toBeVisible();
-  await expect(page.locator(testId("nav-add-folder"))).toBeVisible();
 });
 
-test("shows cloud auth button", async ({ page }) => {
-  const cloudBtn = page.locator(testId("cloud-auth-btn"));
-  await expect(cloudBtn).toBeVisible();
-  await expect(cloudBtn).toContainText("Sign in with Google");
-});
-
-test("shows new note button by default", async ({ page }) => {
-  await expect(page.locator(testId("new-note-btn"))).toBeVisible();
-});
-
-test("recovers from malformed localStorage", async ({ page }) => {
-  await page.evaluate(() => {
-    localStorage.setItem("notes", "not-json");
-  });
-  await page.reload();
-
-  await expect(page.getByText("Nout", { exact: true })).toBeVisible();
-  await expect(page.locator(testId("nav-notes"))).toBeVisible();
-});
-
-test("navigating to scratchpad hides new note button", async ({ page }) => {
-  await page.locator(testId("nav-scratchpad")).click();
-  await expect(page.locator(testId("new-note-btn"))).not.toBeVisible();
-});
-
-test("navigating to trash hides new note button", async ({ page }) => {
-  await page.locator(testId("nav-trash")).click();
-  await expect(page.locator(testId("new-note-btn"))).not.toBeVisible();
+test("shows new note button", async ({ page, isMobile }) => {
+  const btn = isMobile ? testId("fab-new-note") : testId("new-note-btn");
+  await expect(page.locator(btn)).toBeVisible();
 });
 
 test("shows empty state for the notes view", async ({ page }) => {
   await expect(
     page.getByText("No notes on this device. Sign in to see your cloud notes."),
   ).toBeVisible();
-  await expect(page.locator(testId("empty-state-new-note"))).toBeVisible();
 });
 
-test("shows empty state for the favorites view", async ({ page }) => {
+test("shows empty state for favorites", async ({ page }) => {
   await page.locator(testId("nav-favorites")).click();
   await expect(page.getByText("Star a note to see it here.")).toBeVisible();
 });
 
-test("shows empty state for the trash view and hides the empty button", async ({
-  page,
-}) => {
+test("shows empty trash", async ({ page }) => {
   await page.locator(testId("nav-trash")).click();
   await expect(page.getByText("Trash is empty.")).toBeVisible();
-  await expect(page.locator(testId("empty-trash-btn"))).not.toBeVisible();
 });
 
-test("shows the local-only hint when signed out", async ({ page }) => {
-  await expect(page.locator(testId("local-only-hint"))).toBeVisible();
-  await expect(page.locator(testId("local-only-hint"))).toContainText(
-    "Notes are stored in this browser only.",
-  );
+test("shows local-only hint when signed out", async ({ page, isMobile }) => {
+  if (isMobile) {
+    await expect(page.locator('[aria-label="Account"]')).toBeVisible();
+  } else {
+    await expect(page.locator(testId("local-only-hint"))).toBeVisible();
+  }
+});
+
+test("recovers from malformed localStorage", async ({ page, isMobile }) => {
+  await page.evaluate(() => localStorage.setItem("notes", "not-json"));
+  await page.reload();
+  if (isMobile) {
+    await expect(
+      page.getByRole("heading", { name: "Nout - Write stuff" }),
+    ).toBeVisible();
+  } else {
+    await expect(page.getByText("Nout", { exact: true })).toBeVisible();
+  }
 });

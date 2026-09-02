@@ -78,3 +78,17 @@ export function makeFolder(overrides: Partial<SeedFolder> = {}): SeedFolder {
     ...overrides,
   };
 }
+
+/** Navigate to a sidebar nav item, handling mobile bottom nav */
+export async function navigateToView(page: Page, view: string) {
+  const sidebarBtn = page.locator(testId(`nav-${view}`));
+  const bottomNavBtn = page.locator(
+    `[data-testid="bottom-nav"] button >> text="${view.charAt(0).toUpperCase() + view.slice(1)}"`,
+  );
+
+  if (await sidebarBtn.isVisible().catch(() => false)) {
+    await sidebarBtn.click();
+  } else if (await bottomNavBtn.isVisible().catch(() => false)) {
+    await bottomNavBtn.click();
+  }
+}

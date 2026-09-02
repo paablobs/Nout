@@ -9,12 +9,23 @@ import {
 
 interface SignOutDialogProps {
   isOpen: boolean;
+  fullScreen?: boolean;
   onConfirm: () => void;
   onClose: () => void;
 }
 
-const SignOutDialog = ({ isOpen, onConfirm, onClose }: SignOutDialogProps) => (
-  <Dialog data-testid="sign-out-dialog" open={isOpen} onClose={onClose}>
+const SignOutDialog = ({
+  isOpen,
+  fullScreen,
+  onConfirm,
+  onClose,
+}: SignOutDialogProps) => (
+  <Dialog
+    data-testid="sign-out-dialog"
+    open={isOpen}
+    onClose={onClose}
+    fullScreen={fullScreen}
+  >
     <DialogTitle>Sign out</DialogTitle>
     <DialogContent>
       <DialogContentText>

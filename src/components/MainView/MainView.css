@@ -1,13 +1,23 @@
 .mainView {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
 }
 
 .mainView__mobileToolbar {
   display: none;
 }
 
+.mainView__phoneToolbar {
+  display: none;
+  flex-shrink: 0;
+}
+
 .mainView__gridContainer {
-  height: 100dvh;
+  flex: 1;
+  min-height: 0;
   display: flex;
+  overflow: hidden;
 }
 
 .mainView__leftPanel {
@@ -24,19 +34,37 @@
   scrollbar-gutter: stable;
 }
 
-.mainView__rightPanel > div {
-  height: 100%;
+.mainView__rightPanel {
+  min-height: 0;
+  overflow: hidden;
 }
 
-@media (max-width: 1024px) {
+.mainView__rightPanel > div {
+  height: 100%;
+  overflow: auto;
+}
+
+/* Tablet and below (< 1024px): show hamburger toolbar */
+@media (max-width: 1023px) {
   .mainView__mobileToolbar {
     display: flex;
     align-items: center;
     min-height: 48px;
     padding: 0 8px;
+    flex-shrink: 0;
+  }
+}
+
+/* Phone (< 768px): show phone top bar, hide hamburger */
+@media (max-width: 767px) {
+  .mainView__mobileToolbar {
+    display: none;
   }
 
-  .mainView__gridContainer {
-    height: calc(100dvh - 48px);
+  .mainView__phoneToolbar {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 12px;
   }
 }

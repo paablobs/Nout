@@ -71,6 +71,7 @@ const Tiptap = ({ content, onChange, editable = true }: TiptapProps) => {
     <EditorContext.Provider value={providerValue}>
       <div data-testid="tiptap-editor">
         <EditorContent editor={editor} />
+        <div className="editor__keyboard-spacer" />
       </div>
     </EditorContext.Provider>
   );

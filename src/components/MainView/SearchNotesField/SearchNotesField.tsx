@@ -6,13 +6,22 @@ interface SearchNotesFieldProps {
   onChange: (value: string) => void;
 }
 
-const SearchNotesField = ({ value, onChange }: SearchNotesFieldProps) => (
+const SearchNotesField = ({
+  value,
+  onChange,
+  sticky,
+}: SearchNotesFieldProps & { sticky?: boolean }) => (
   <TextField
     placeholder="Search notes"
     size="small"
     fullWidth
     value={value}
     onChange={(event) => onChange(event.target.value)}
+    sx={
+      sticky
+        ? { position: "sticky", top: 0, zIndex: 1, bgcolor: "background.paper" }
+        : {}
+    }
     slotProps={{
       htmlInput: { "data-testid": "notes-search-input" },
       input: {

@@ -11,12 +11,14 @@ import { useState } from "react";
 
 interface CreateFolderDialogProps {
   isOpen: boolean;
+  fullScreen?: boolean;
   onAddFolder: (folderName: string) => void;
   onClose: () => void;
 }
 
 const CreateFolderDialog = ({
   isOpen,
+  fullScreen,
   onAddFolder,
   onClose,
 }: CreateFolderDialogProps) => {
@@ -37,6 +39,7 @@ const CreateFolderDialog = ({
       data-testid="create-folder-dialog"
       open={isOpen}
       onClose={handleClose}
+      fullScreen={fullScreen}
     >
       <form onSubmit={handleSubmit}>
         <DialogTitle>Add Folder</DialogTitle>
