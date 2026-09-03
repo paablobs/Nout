@@ -13,8 +13,18 @@ test.beforeEach(async ({ page }) => {
 
 test("create a new note", async ({ page, isMobile }) => {
   const btn = isMobile ? testId("fab-new-note") : testId("new-note-btn");
+  if (isMobile) {
+    await page.locator(testId("notes-empty-state")).waitFor();
+  }
   await page.locator(btn).click();
-  await expect(page.locator('[data-testid^="note-card-"]')).toHaveCount(1);
+  if (isMobile) {
+    const editor = page
+      .locator(testId("tiptap-editor"))
+      .locator(".ProseMirror");
+    await expect(editor).toBeVisible();
+  } else {
+    await expect(page.locator('[data-testid^="note-card-"]')).toHaveCount(1);
+  }
 });
 
 test("edit a note via TipTap editor", async ({ page }) => {
@@ -73,7 +83,7 @@ test("restore a note from trash", async ({ page }) => {
   await expect(page.locator(testId(`note-card-${noteId}`))).toBeVisible();
 });
 
-test("hide a note from Notes view", async ({ page }) => {
+test("hide a note from Notes view", async ({ page, isMobile }) => {
   const noteId = crypto.randomUUID();
   const folderId = crypto.randomUUID();
   await seedLocalStorage(page, {
@@ -84,6 +94,11 @@ test("hide a note from Notes view", async ({ page }) => {
   await page.locator(testId(`three-dot-btn-${noteId}`)).click();
   await page.locator(testId(`hide-note-${noteId}`)).click();
   await expect(page.locator(testId(`note-card-${noteId}`))).not.toBeVisible();
-  await page.locator(testId("folder-btn-Custom")).click();
+  if (isMobile) {
+    await page.locator(testId("nav-folders")).click();
+    await page.locator(testId("folder-list-item-Custom")).click();
+  } else {
+    await page.locator(testId("folder-btn-Custom")).click();
+  }
   await expect(page.locator(testId(`note-card-${noteId}`))).toBeVisible();
 });

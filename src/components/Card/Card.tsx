@@ -122,7 +122,15 @@ const CustomCard = ({
         <Card
           className="box__card"
           variant="outlined"
-          onClick={onSelect ? () => onSelect(id) : undefined}
+          onClick={
+            onSelect
+              ? (e) => {
+                  const target = e.target as HTMLElement;
+                  if (target.closest("button, [role='menuitem']")) return;
+                  onSelect(id);
+                }
+              : undefined
+          }
           data-active={selected ? "true" : undefined}
           sx={
             selected
@@ -153,7 +161,14 @@ const CustomCard = ({
                   aria-label={
                     isFav ? "Remove from favorites" : "Add to favorites"
                   }
-                  onClick={onFav ? () => onFav(id) : undefined}
+                  onClick={
+                    onFav
+                      ? (e) => {
+                          e.stopPropagation();
+                          onFav(id);
+                        }
+                      : undefined
+                  }
                   size="small"
                   sx={{ width: 44, height: 44 }}
                 >
@@ -169,66 +184,65 @@ const CustomCard = ({
                   aria-label="More actions"
                   size="small"
                   sx={{ width: 44, height: 44 }}
-                  onClick={(e) => setMenuAnchor(e.currentTarget)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuAnchor(e.currentTarget);
+                  }}
                 >
                   <ThreeDotMenuIcon />
                 </IconButton>
                 <Menu
                   anchorEl={menuAnchor}
-                  open={Boolean(menuAnchor) && !folderPickerOpen}
+                  open={Boolean(menuAnchor)}
                   onClose={() => {
                     setMenuAnchor(null);
                     setFolderPickerOpen(false);
                   }}
                 >
-                  {onMoveToFolder &&
-                    (folders || []).filter((f) => f.id !== folderId).length >
-                      0 && (
-                      <MenuItem
-                        data-testid={`move-folder-menu-${id}`}
-                        onClick={() => setFolderPickerOpen(true)}
-                      >
-                        Move to folder
-                      </MenuItem>
-                    )}
-                  {folderId && onHide && (
-                    <MenuItem
-                      data-testid={`hide-note-${id}`}
-                      onClick={() => {
-                        setMenuAnchor(null);
-                        setFolderPickerOpen(false);
-                        onHide(id);
-                      }}
-                    >
-                      {isHidden
-                        ? `Show in ${DEFAULT_CATEGORY}`
-                        : `Hide from ${DEFAULT_CATEGORY}`}
-                    </MenuItem>
+                  {!folderPickerOpen && (
+                    <>
+                      {onMoveToFolder &&
+                        (folders || []).filter((f) => f.id !== folderId)
+                          .length > 0 && (
+                          <MenuItem
+                            data-testid={`move-folder-menu-${id}`}
+                            onClick={() => setFolderPickerOpen(true)}
+                          >
+                            Move to folder
+                          </MenuItem>
+                        )}
+                      {folderId && onHide && (
+                        <MenuItem
+                          data-testid={`hide-note-${id}`}
+                          onClick={() => {
+                            setMenuAnchor(null);
+                            setFolderPickerOpen(false);
+                            onHide(id);
+                          }}
+                        >
+                          {isHidden
+                            ? `Show in ${DEFAULT_CATEGORY}`
+                            : `Hide from ${DEFAULT_CATEGORY}`}
+                        </MenuItem>
+                      )}
+                    </>
                   )}
-                </Menu>
-                <Menu
-                  anchorEl={menuAnchor}
-                  open={folderPickerOpen}
-                  onClose={() => {
-                    setMenuAnchor(null);
-                    setFolderPickerOpen(false);
-                  }}
-                >
-                  {(folders || [])
-                    .filter((f) => f.id !== folderId)
-                    .map((folder) => (
-                      <MenuItem
-                        key={folder.id}
-                        data-testid={`move-to-folder-${folder.name}`}
-                        onClick={() => {
-                          setMenuAnchor(null);
-                          setFolderPickerOpen(false);
-                          onMoveToFolder?.(id, folder.id);
-                        }}
-                      >
-                        {folder.name}
-                      </MenuItem>
-                    ))}
+                  {folderPickerOpen &&
+                    (folders || [])
+                      .filter((f) => f.id !== folderId)
+                      .map((folder) => (
+                        <MenuItem
+                          key={folder.id}
+                          data-testid={`move-to-folder-${folder.name}`}
+                          onClick={() => {
+                            setMenuAnchor(null);
+                            setFolderPickerOpen(false);
+                            onMoveToFolder?.(id, folder.id);
+                          }}
+                        >
+                          {folder.name}
+                        </MenuItem>
+                      ))}
                 </Menu>
                 <IconButton
                   data-testid={`trash-btn-${id}`}

@@ -151,11 +151,10 @@ const MainView = () => {
 
   const isTablet = isBelowDesktop && !isPhone;
 
-  // Phone drill-down: editor visible only when a note is selected or scratchpad
+  // Phone drill-down: editor visible only when a note is explicitly selected or scratchpad
   const showEditorOnPhone =
     isPhone &&
-    (Boolean(effectiveSelectedNoteId) ||
-      currentView === selectedView.SCRATCHPAD);
+    (Boolean(selectedNoteId) || currentView === selectedView.SCRATCHPAD);
   const showList =
     !showEditorOnPhone && currentView !== selectedView.SCRATCHPAD;
   const showFolderList =
@@ -306,7 +305,7 @@ const MainView = () => {
         </div>
       )}
       {isPhone && !showEditorOnPhone && (
-        <div className="mainView__phoneToolbar">
+        <div className="mainView__phoneToolbar" data-testid="phone-top-bar">
           <Typography variant="subtitle1" sx={{ flex: 1, fontWeight: 600 }}>
             {viewTitle}
           </Typography>

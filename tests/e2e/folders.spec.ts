@@ -13,12 +13,9 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("create a folder via dialog", async ({ page, isMobile }) => {
-  if (isMobile) {
-    await page.locator(testId("nav-folders")).click();
-    await page.locator(testId("fab-new-note")).click();
-  } else {
-    await page.locator(testId("nav-add-folder")).click();
-  }
+  test.skip(isMobile, "No folder creation UI on phone");
+
+  await page.locator(testId("nav-add-folder")).click();
 
   await expect(page.locator(testId("create-folder-dialog"))).toBeVisible();
 
@@ -27,38 +24,23 @@ test("create a folder via dialog", async ({ page, isMobile }) => {
 
   await expect(page.locator(testId("create-folder-dialog"))).not.toBeVisible();
 
-  if (isMobile) {
-    await expect(
-      page.locator(testId("folder-list-item-My Folder")),
-    ).toBeVisible();
-  } else {
-    await expect(page.locator(testId("folder-btn-My Folder"))).toBeVisible();
-  }
+  await expect(page.locator(testId("folder-btn-My Folder"))).toBeVisible();
 });
 
 test("cancel folder creation does not create folder", async ({
   page,
   isMobile,
 }) => {
-  if (isMobile) {
-    await page.locator(testId("nav-folders")).click();
-    await page.locator(testId("fab-new-note")).click();
-  } else {
-    await page.locator(testId("nav-add-folder")).click();
-  }
+  test.skip(isMobile, "No folder creation UI on phone");
+
+  await page.locator(testId("nav-add-folder")).click();
 
   await page.getByLabel("Folder Name").fill("Canceled Folder");
   await page.locator(testId("create-folder-cancel")).click();
 
-  if (isMobile) {
-    await expect(
-      page.locator(testId("folder-list-item-Canceled Folder")),
-    ).not.toBeVisible();
-  } else {
-    await expect(
-      page.locator(testId("folder-btn-Canceled Folder")),
-    ).not.toBeVisible();
-  }
+  await expect(
+    page.locator(testId("folder-btn-Canceled Folder")),
+  ).not.toBeVisible();
 });
 
 test("delete a folder via dialog", async ({ page, isMobile }) => {

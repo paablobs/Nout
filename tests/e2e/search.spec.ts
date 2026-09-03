@@ -70,6 +70,7 @@ test("search shows an empty state when nothing matches", async ({ page }) => {
 
 test("search does not surface hidden notes outside their folder", async ({
   page,
+  isMobile,
 }) => {
   const noteId = crypto.randomUUID();
   const folderId = crypto.randomUUID();
@@ -89,7 +90,12 @@ test("search does not surface hidden notes outside their folder", async ({
   await page.locator(testId("notes-search-input")).fill("codename");
   await expect(page.locator(testId(`note-card-${noteId}`))).not.toBeVisible();
 
-  await page.locator(testId("folder-btn-Secrets")).click();
+  if (isMobile) {
+    await page.locator(testId("nav-folders")).click();
+    await page.locator(testId("folder-list-item-Secrets")).click();
+  } else {
+    await page.locator(testId("folder-btn-Secrets")).click();
+  }
   await page.locator(testId("notes-search-input")).fill("codename");
   await expect(page.locator(testId(`note-card-${noteId}`))).toBeVisible();
 });
