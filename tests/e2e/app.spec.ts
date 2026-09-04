@@ -1,5 +1,10 @@
 import { test, expect } from "@playwright/test";
-import { testId, clearLocalStorage } from "./helpers";
+import {
+  testId,
+  clearLocalStorage,
+  clickNav,
+  openDrawerIfNeeded,
+} from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
@@ -12,11 +17,13 @@ test("renders the app title", async ({ page, isMobile }) => {
       page.getByRole("heading", { name: "Nout - Write stuff" }),
     ).toBeVisible();
   } else {
+    await openDrawerIfNeeded(page);
     await expect(page.getByText("Nout", { exact: true })).toBeVisible();
   }
 });
 
 test("shows navigation items", async ({ page }) => {
+  await openDrawerIfNeeded(page);
   await expect(page.locator(testId("nav-scratchpad"))).toBeVisible();
   await expect(page.locator(testId("nav-notes"))).toBeVisible();
   await expect(page.locator(testId("nav-favorites"))).toBeVisible();
@@ -24,8 +31,12 @@ test("shows navigation items", async ({ page }) => {
 });
 
 test("shows new note button", async ({ page, isMobile }) => {
-  const btn = isMobile ? testId("fab-new-note") : testId("new-note-btn");
-  await expect(page.locator(btn)).toBeVisible();
+  if (isMobile) {
+    await expect(page.locator(testId("fab-new-note"))).toBeVisible();
+  } else {
+    await openDrawerIfNeeded(page);
+    await expect(page.locator(testId("new-note-btn"))).toBeVisible();
+  }
 });
 
 test("shows empty state for the notes view", async ({ page }) => {
@@ -35,12 +46,12 @@ test("shows empty state for the notes view", async ({ page }) => {
 });
 
 test("shows empty state for favorites", async ({ page }) => {
-  await page.locator(testId("nav-favorites")).click();
+  await clickNav(page, "favorites");
   await expect(page.getByText("Star a note to see it here.")).toBeVisible();
 });
 
 test("shows empty trash", async ({ page }) => {
-  await page.locator(testId("nav-trash")).click();
+  await clickNav(page, "trash");
   await expect(page.getByText("Trash is empty.")).toBeVisible();
 });
 
@@ -48,6 +59,7 @@ test("shows local-only hint when signed out", async ({ page, isMobile }) => {
   if (isMobile) {
     await expect(page.locator('[aria-label="Account"]')).toBeVisible();
   } else {
+    await openDrawerIfNeeded(page);
     await expect(page.locator(testId("local-only-hint"))).toBeVisible();
   }
 });
@@ -60,6 +72,7 @@ test("recovers from malformed localStorage", async ({ page, isMobile }) => {
       page.getByRole("heading", { name: "Nout - Write stuff" }),
     ).toBeVisible();
   } else {
+    await openDrawerIfNeeded(page);
     await expect(page.getByText("Nout", { exact: true })).toBeVisible();
   }
 });

@@ -92,3 +92,29 @@ export async function navigateToView(page: Page, view: string) {
     await bottomNavBtn.click();
   }
 }
+
+export async function openDrawerIfNeeded(page: Page) {
+  const nav = page.locator(testId("nav-notes"));
+  if (await nav.isVisible().catch(() => false)) return;
+  const hamburger = page.locator('[aria-label="Open navigation menu"]');
+  if (await hamburger.isVisible().catch(() => false)) {
+    await hamburger.click();
+    await page.locator(testId("nav-notes")).waitFor({ state: "visible" });
+  }
+}
+
+export async function clickNav(page: Page, view: string) {
+  const target = page.locator(testId(`nav-${view}`));
+  if (await target.isVisible().catch(() => false)) {
+    await target.click();
+    return;
+  }
+  const hamburger = page.locator('[aria-label="Open navigation menu"]');
+  if (await hamburger.isVisible().catch(() => false)) {
+    await hamburger.click();
+    await target.waitFor({ state: "visible" });
+    await target.click();
+    return;
+  }
+  await target.click();
+}

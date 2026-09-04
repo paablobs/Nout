@@ -4,6 +4,8 @@ import {
   clearLocalStorage,
   makeNote,
   seedLocalStorage,
+  clickNav,
+  openDrawerIfNeeded,
 } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
@@ -12,17 +14,16 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("create a new note", async ({ page, isMobile }) => {
-  const btn = isMobile ? testId("fab-new-note") : testId("new-note-btn");
   if (isMobile) {
     await page.locator(testId("notes-empty-state")).waitFor();
-  }
-  await page.locator(btn).click();
-  if (isMobile) {
+    await page.locator(testId("fab-new-note")).click();
     const editor = page
       .locator(testId("tiptap-editor"))
       .locator(".ProseMirror");
     await expect(editor).toBeVisible();
   } else {
+    await openDrawerIfNeeded(page);
+    await page.locator(testId("new-note-btn")).click();
     await expect(page.locator('[data-testid^="note-card-"]')).toHaveCount(1);
   }
 });
@@ -64,7 +65,7 @@ test("move a note to trash", async ({ page }) => {
   await page.goto("/");
   await page.locator(testId(`trash-btn-${noteId}`)).click();
   await expect(page.locator(testId(`note-card-${noteId}`))).not.toBeVisible();
-  await page.locator(testId("nav-trash")).click();
+  await clickNav(page, "trash");
   await expect(page.locator(testId(`note-card-${noteId}`))).toBeVisible();
 });
 
@@ -76,10 +77,10 @@ test("restore a note from trash", async ({ page }) => {
     },
   });
   await page.goto("/");
-  await page.locator(testId("nav-trash")).click();
+  await clickNav(page, "trash");
   await page.locator(testId(`restore-btn-${noteId}`)).click();
   await expect(page.locator(testId(`note-card-${noteId}`))).not.toBeVisible();
-  await page.locator(testId("nav-notes")).click();
+  await clickNav(page, "notes");
   await expect(page.locator(testId(`note-card-${noteId}`))).toBeVisible();
 });
 
@@ -98,6 +99,7 @@ test("hide a note from Notes view", async ({ page, isMobile }) => {
     await page.locator(testId("nav-folders")).click();
     await page.locator(testId("folder-list-item-Custom")).click();
   } else {
+    await openDrawerIfNeeded(page);
     await page.locator(testId("folder-btn-Custom")).click();
   }
   await expect(page.locator(testId(`note-card-${noteId}`))).toBeVisible();

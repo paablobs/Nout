@@ -5,6 +5,8 @@ import {
   makeNote,
   makeFolder,
   seedLocalStorage,
+  clickNav,
+  openDrawerIfNeeded,
 } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
@@ -94,6 +96,7 @@ test("search does not surface hidden notes outside their folder", async ({
     await page.locator(testId("nav-folders")).click();
     await page.locator(testId("folder-list-item-Secrets")).click();
   } else {
+    await openDrawerIfNeeded(page);
     await page.locator(testId("folder-btn-Secrets")).click();
   }
   await page.locator(testId("notes-search-input")).fill("codename");
@@ -101,6 +104,6 @@ test("search does not surface hidden notes outside their folder", async ({
 });
 
 test("search is not shown in the trash view", async ({ page }) => {
-  await page.locator(testId("nav-trash")).click();
+  await clickNav(page, "trash");
   await expect(page.locator(testId("notes-search-input"))).not.toBeVisible();
 });

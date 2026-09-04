@@ -4,6 +4,7 @@ import {
   clearLocalStorage,
   makeNote,
   seedLocalStorage,
+  clickNav,
 } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
@@ -32,7 +33,7 @@ test("empty trash permanently deletes notes", async ({ page }) => {
   });
   await page.goto("/");
 
-  await page.locator(testId("nav-trash")).click();
+  await clickNav(page, "trash");
 
   await expect(page.locator(testId(`note-card-${noteId1}`))).toBeVisible();
   await expect(page.locator(testId(`note-card-${noteId2}`))).toBeVisible();
@@ -63,7 +64,7 @@ test("cancel empty trash keeps notes", async ({ page }) => {
   });
   await page.goto("/");
 
-  await page.locator(testId("nav-trash")).click();
+  await clickNav(page, "trash");
   await page.locator(testId("empty-trash-btn")).click();
   await page.locator(testId("empty-trash-cancel")).click();
 
@@ -84,7 +85,7 @@ test("trashing a note shows when it was trashed", async ({ page }) => {
   });
   await page.goto("/");
 
-  await page.locator(testId("nav-trash")).click();
+  await clickNav(page, "trash");
 
   await expect(page.locator(testId(`note-card-${noteId}`))).toContainText(
     "Trashed",
