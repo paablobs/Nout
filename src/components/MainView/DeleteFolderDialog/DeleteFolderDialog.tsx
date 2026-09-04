@@ -9,6 +9,7 @@ import {
 
 interface DeleteFolderDialogProps {
   isOpen: boolean;
+  fullScreen?: boolean;
   folderName: string | undefined;
   noteCount: number;
   onDeleteFolder: () => void;
@@ -23,12 +24,18 @@ const notesMessage = (noteCount: number): string => {
 
 const DeleteFolderDialog = ({
   isOpen,
+  fullScreen,
   folderName,
   noteCount,
   onDeleteFolder,
   onClose,
 }: DeleteFolderDialogProps) => (
-  <Dialog data-testid="delete-folder-dialog" open={isOpen} onClose={onClose}>
+  <Dialog
+    data-testid="delete-folder-dialog"
+    open={isOpen}
+    onClose={onClose}
+    fullScreen={fullScreen}
+  >
     <DialogTitle>Delete Folder</DialogTitle>
     <DialogContent>
       <DialogContentText>

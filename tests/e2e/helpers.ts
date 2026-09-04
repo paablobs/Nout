@@ -78,3 +78,43 @@ export function makeFolder(overrides: Partial<SeedFolder> = {}): SeedFolder {
     ...overrides,
   };
 }
+
+/** Navigate to a sidebar nav item, handling mobile bottom nav */
+export async function navigateToView(page: Page, view: string) {
+  const sidebarBtn = page.locator(testId(`nav-${view}`));
+  const bottomNavBtn = page.locator(
+    `[data-testid="bottom-nav"] button >> text="${view.charAt(0).toUpperCase() + view.slice(1)}"`,
+  );
+
+  if (await sidebarBtn.isVisible().catch(() => false)) {
+    await sidebarBtn.click();
+  } else if (await bottomNavBtn.isVisible().catch(() => false)) {
+    await bottomNavBtn.click();
+  }
+}
+
+export async function openDrawerIfNeeded(page: Page) {
+  const nav = page.locator(testId("nav-notes"));
+  if (await nav.isVisible().catch(() => false)) return;
+  const hamburger = page.locator('[aria-label="Open navigation menu"]');
+  if (await hamburger.isVisible().catch(() => false)) {
+    await hamburger.click();
+    await page.locator(testId("nav-notes")).waitFor({ state: "visible" });
+  }
+}
+
+export async function clickNav(page: Page, view: string) {
+  const target = page.locator(testId(`nav-${view}`));
+  if (await target.isVisible().catch(() => false)) {
+    await target.click();
+    return;
+  }
+  const hamburger = page.locator('[aria-label="Open navigation menu"]');
+  if (await hamburger.isVisible().catch(() => false)) {
+    await hamburger.click();
+    await target.waitFor({ state: "visible" });
+    await target.click();
+    return;
+  }
+  await target.click();
+}

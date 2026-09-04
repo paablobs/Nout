@@ -1,5 +1,10 @@
 import { createTheme, type Theme } from "@mui/material";
 
+// Breakpoint thresholds — single source for all responsive logic.
+// Phone < 768px, Tablet 768–1023px, Desktop >= 1024px.
+export const BREAKPOINT_PHONE = 768;
+export const BREAKPOINT_TABLET = 1024;
+
 // The theme is built in two passes on purpose: augmentColor() only exists on a
 // Theme instance, so a throwaway base theme is created first to borrow its
 // palette helpers for the secondary and error colors.
@@ -7,6 +12,15 @@ const createNoutTheme = (): Theme => {
   const base = createTheme();
 
   return createTheme({
+    breakpoints: {
+      values: {
+        xs: 0,
+        sm: BREAKPOINT_PHONE,
+        md: BREAKPOINT_TABLET,
+        lg: 1200,
+        xl: 1536,
+      },
+    },
     palette: {
       mode: "dark",
       background: {

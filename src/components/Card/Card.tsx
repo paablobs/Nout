@@ -1,3 +1,4 @@
+import { useState } from "react";
 import Card from "@mui/material/Card";
 import Box from "@mui/material/Box";
 import CardActions from "@mui/material/CardActions";
@@ -40,6 +41,7 @@ interface CustomCardProps {
   folderId?: string | null;
   onSelect?: (id: string) => void;
   selected?: boolean;
+  compact?: boolean;
 }
 
 const CustomCard = ({
@@ -59,7 +61,11 @@ const CustomCard = ({
   folderId,
   onSelect,
   selected,
+  compact,
 }: CustomCardProps) => {
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
+  const [folderPickerOpen, setFolderPickerOpen] = useState(false);
+
   const moveToFolderPopup = () => (
     <PopupState variant="popover" popupId={`move-folder-popup-${id}`}>
       {(popupState) => {
@@ -99,6 +105,188 @@ const CustomCard = ({
     </PopupState>
   );
 
+  const folderLabel =
+    folders?.find((folder) => folder.id === folderId)?.name ?? DEFAULT_CATEGORY;
+  const editedLabel = formatRelativeTime(updatedAt);
+  const metaLine = isTrash
+    ? trashedAt
+      ? `Trashed ${formatRelativeTime(trashedAt)}`
+      : "Trashed"
+    : editedLabel
+      ? `${folderLabel} · edited ${editedLabel}`
+      : folderLabel;
+
+  if (compact) {
+    return (
+      <Box className="box" data-testid={`note-card-${id}`}>
+        <Card
+          className="box__card"
+          variant="outlined"
+          onClick={
+            onSelect
+              ? (e) => {
+                  const target = e.target as HTMLElement;
+                  if (target.closest("button, [role='menuitem']")) return;
+                  onSelect(id);
+                }
+              : undefined
+          }
+          data-active={selected ? "true" : undefined}
+          sx={
+            selected
+              ? (theme) => ({
+                  backgroundColor: alpha(theme.palette.primary.main, 0.3),
+                })
+              : {}
+          }
+        >
+          <CardContent sx={{ pb: "4px !important" }}>
+            <Typography
+              variant="subtitle1"
+              component="div"
+              className="box__text"
+              noWrap
+            >
+              {getPreviewText(text)}
+            </Typography>
+            <Typography variant="caption" className="box__text" noWrap>
+              {metaLine}
+            </Typography>
+          </CardContent>
+          <CardActions sx={{ pt: 0, minHeight: 0 }}>
+            {!isTrash && (
+              <>
+                <IconButton
+                  data-testid={`fav-btn-${id}`}
+                  aria-label={
+                    isFav ? "Remove from favorites" : "Add to favorites"
+                  }
+                  onClick={
+                    onFav
+                      ? (e) => {
+                          e.stopPropagation();
+                          onFav(id);
+                        }
+                      : undefined
+                  }
+                  size="small"
+                  sx={{ width: 44, height: 44 }}
+                >
+                  {isFav ? (
+                    <StarIcon sx={{ color: yellow[700] }} />
+                  ) : (
+                    <StarredIcon />
+                  )}
+                </IconButton>
+                <Box sx={{ flex: 1 }} />
+                <IconButton
+                  data-testid={`three-dot-btn-${id}`}
+                  aria-label="More actions"
+                  size="small"
+                  sx={{ width: 44, height: 44 }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuAnchor(e.currentTarget);
+                  }}
+                >
+                  <ThreeDotMenuIcon />
+                </IconButton>
+                <Menu
+                  anchorEl={menuAnchor}
+                  open={Boolean(menuAnchor)}
+                  onClose={() => {
+                    setMenuAnchor(null);
+                    setFolderPickerOpen(false);
+                  }}
+                >
+                  {!folderPickerOpen && (
+                    <>
+                      {onMoveToFolder &&
+                        (folders || []).filter((f) => f.id !== folderId)
+                          .length > 0 && (
+                          <MenuItem
+                            data-testid={`move-folder-menu-${id}`}
+                            onClick={() => setFolderPickerOpen(true)}
+                          >
+                            Move to folder
+                          </MenuItem>
+                        )}
+                      {folderId && onHide && (
+                        <MenuItem
+                          data-testid={`hide-note-${id}`}
+                          onClick={() => {
+                            setMenuAnchor(null);
+                            setFolderPickerOpen(false);
+                            onHide(id);
+                          }}
+                        >
+                          {isHidden
+                            ? `Show in ${DEFAULT_CATEGORY}`
+                            : `Hide from ${DEFAULT_CATEGORY}`}
+                        </MenuItem>
+                      )}
+                    </>
+                  )}
+                  {folderPickerOpen &&
+                    (folders || [])
+                      .filter((f) => f.id !== folderId)
+                      .map((folder) => (
+                        <MenuItem
+                          key={folder.id}
+                          data-testid={`move-to-folder-${folder.name}`}
+                          onClick={() => {
+                            setMenuAnchor(null);
+                            setFolderPickerOpen(false);
+                            onMoveToFolder?.(id, folder.id);
+                          }}
+                        >
+                          {folder.name}
+                        </MenuItem>
+                      ))}
+                </Menu>
+                <IconButton
+                  data-testid={`trash-btn-${id}`}
+                  aria-label="Move note to trash"
+                  onClick={
+                    onTrash
+                      ? (e) => {
+                          e.stopPropagation();
+                          onTrash(id);
+                        }
+                      : undefined
+                  }
+                  size="small"
+                  sx={{ width: 44, height: 44 }}
+                >
+                  <DeleteOutlineIcon />
+                </IconButton>
+              </>
+            )}
+            {isTrash && (
+              <IconButton
+                data-testid={`restore-btn-${id}`}
+                aria-label="Restore note"
+                size="small"
+                sx={{ width: 44, height: 44 }}
+                onClick={
+                  onRestore
+                    ? (e) => {
+                        e.stopPropagation();
+                        onRestore(id);
+                      }
+                    : undefined
+                }
+              >
+                <RestoreIcon />
+              </IconButton>
+            )}
+          </CardActions>
+        </Card>
+      </Box>
+    );
+  }
+
+  // Desktop / non-compact layout
   const hideFromAllNotesPopup = () => (
     <PopupState variant="popover" popupId={`hide-from-notes-${id}`}>
       {(popupState) => {
@@ -131,17 +319,6 @@ const CustomCard = ({
       }}
     </PopupState>
   );
-
-  const folderLabel =
-    folders?.find((folder) => folder.id === folderId)?.name ?? DEFAULT_CATEGORY;
-  const editedLabel = formatRelativeTime(updatedAt);
-  const metaLine = isTrash
-    ? trashedAt
-      ? `Trashed ${formatRelativeTime(trashedAt)}`
-      : "Trashed"
-    : editedLabel
-      ? `${folderLabel} · edited ${editedLabel}`
-      : folderLabel;
 
   return (
     <Box className="box" data-testid={`note-card-${id}`}>
