@@ -9,21 +9,52 @@ import type { Note, NotesRepository } from "../types";
 import { normalizeNote } from "../../utils/noteSchema";
 import { commitInBatches, type BatchOperation } from "./firestoreBatch";
 
-const noteToDoc = (note: Note): Record<string, unknown> => {
-  const data: Record<string, unknown> = {
-    id: note.id,
-    text: note.text,
-    isFav: note.isFav,
-    isTrash: note.isTrash,
-    isHidden: note.isHidden,
-    createdAt: note.createdAt,
-    updatedAt: note.updatedAt,
+const sanitizeNoteForDoc = (note: Note): Note => {
+  let createdAt = note.createdAt;
+  let updatedAt = note.updatedAt;
+  if (!Number.isFinite(createdAt)) createdAt = Date.now();
+  if (!Number.isFinite(updatedAt)) updatedAt = createdAt;
+  if (updatedAt < createdAt) updatedAt = createdAt;
+  const sanitized: Note = {
+    ...note,
+    createdAt,
+    updatedAt,
   };
-  if (note.folderId !== undefined) {
-    data.folderId = note.folderId;
+  if (
+    sanitized.folderId !== undefined &&
+    (typeof sanitized.folderId !== "string" ||
+      sanitized.folderId.length === 0 ||
+      sanitized.folderId.length > 128)
+  ) {
+    delete (sanitized as unknown as Record<string, unknown>).folderId;
   }
-  if (note.trashedAt !== undefined) {
-    data.trashedAt = note.trashedAt;
+  if (
+    sanitized.trashedAt !== undefined &&
+    typeof sanitized.trashedAt !== "number"
+  ) {
+    delete (sanitized as unknown as Record<string, unknown>).trashedAt;
+  }
+  // Strip legacy category field if present on raw object
+  delete (sanitized as unknown as Record<string, unknown>).category;
+  return sanitized;
+};
+
+const noteToDoc = (note: Note): Record<string, unknown> => {
+  const clean = sanitizeNoteForDoc(note);
+  const data: Record<string, unknown> = {
+    id: clean.id,
+    text: clean.text,
+    isFav: clean.isFav,
+    isTrash: clean.isTrash,
+    isHidden: clean.isHidden,
+    createdAt: clean.createdAt,
+    updatedAt: clean.updatedAt,
+  };
+  if (clean.folderId !== undefined) {
+    data.folderId = clean.folderId;
+  }
+  if (clean.trashedAt !== undefined) {
+    data.trashedAt = clean.trashedAt;
   }
   return data;
 };
