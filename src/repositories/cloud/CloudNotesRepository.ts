@@ -4,28 +4,59 @@ import {
   type Firestore,
   getDocs,
   setDoc,
-  writeBatch,
 } from "firebase/firestore";
 import type { Note, NotesRepository } from "../types";
+import { normalizeNote } from "../../utils/noteSchema";
+import { commitInBatches, type BatchOperation } from "./firestoreBatch";
 
-const FIRESTORE_BATCH_LIMIT = 500;
-type BatchOperation = (batch: ReturnType<typeof writeBatch>) => void;
-
-export const commitInBatches = async (
-  cloudDb: Firestore,
-  operations: BatchOperation[],
-) => {
-  for (
-    let index = 0;
-    index < operations.length;
-    index += FIRESTORE_BATCH_LIMIT
+const sanitizeNoteForDoc = (note: Note): Note => {
+  let createdAt = note.createdAt;
+  let updatedAt = note.updatedAt;
+  if (!Number.isFinite(createdAt)) createdAt = Date.now();
+  if (!Number.isFinite(updatedAt)) updatedAt = createdAt;
+  if (updatedAt < createdAt) updatedAt = createdAt;
+  const sanitized: Note = {
+    ...note,
+    createdAt,
+    updatedAt,
+  };
+  if (
+    sanitized.folderId !== undefined &&
+    (typeof sanitized.folderId !== "string" ||
+      sanitized.folderId.length === 0 ||
+      sanitized.folderId.length > 128)
   ) {
-    const batch = writeBatch(cloudDb);
-    operations
-      .slice(index, index + FIRESTORE_BATCH_LIMIT)
-      .forEach((operation) => operation(batch));
-    await batch.commit();
+    delete (sanitized as unknown as Record<string, unknown>).folderId;
   }
+  if (
+    sanitized.trashedAt !== undefined &&
+    typeof sanitized.trashedAt !== "number"
+  ) {
+    delete (sanitized as unknown as Record<string, unknown>).trashedAt;
+  }
+  // Strip legacy category field if present on raw object
+  delete (sanitized as unknown as Record<string, unknown>).category;
+  return sanitized;
+};
+
+const noteToDoc = (note: Note): Record<string, unknown> => {
+  const clean = sanitizeNoteForDoc(note);
+  const data: Record<string, unknown> = {
+    id: clean.id,
+    text: clean.text,
+    isFav: clean.isFav,
+    isTrash: clean.isTrash,
+    isHidden: clean.isHidden,
+    createdAt: clean.createdAt,
+    updatedAt: clean.updatedAt,
+  };
+  if (clean.folderId !== undefined) {
+    data.folderId = clean.folderId;
+  }
+  if (clean.trashedAt !== undefined) {
+    data.trashedAt = clean.trashedAt;
+  }
+  return data;
 };
 
 export function createCloudNotesRepository(
@@ -39,18 +70,18 @@ export function createCloudNotesRepository(
       const snapshot = await getDocs(notesRef);
       const record: Record<string, Note> = {};
       snapshot.docs.forEach((item) => {
-        record[item.id] = item.data() as Note;
+        record[item.id] = normalizeNote(item.data());
       });
       return record;
     },
 
     async upsert(note) {
-      await setDoc(doc(notesRef, note.id), note);
+      await setDoc(doc(notesRef, note.id), noteToDoc(note));
     },
 
     async upsertBatch(notes) {
       const operations: BatchOperation[] = notes.map(
-        (note) => (batch) => batch.set(doc(notesRef, note.id), note),
+        (note) => (batch) => batch.set(doc(notesRef, note.id), noteToDoc(note)),
       );
       await commitInBatches(cloudDb, operations);
     },

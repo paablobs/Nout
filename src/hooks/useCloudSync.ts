@@ -1,7 +1,8 @@
-import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { doc, getDoc, setDoc, type Firestore } from "firebase/firestore";
+import { useEffect, useRef, useState } from "react";
+import { doc, onSnapshot, setDoc, type Firestore } from "firebase/firestore";
 import { useLocalStorage } from "./useLocalStorage";
 import { useSession } from "../contexts/SessionContext";
+import { useReportError } from "../contexts/ErrorContext";
 import { db } from "../config/firebase";
 
 const SYNC_SAVE_DEBOUNCE_MS = 400;
@@ -22,88 +23,128 @@ export function useCloudSync<T>({
   deserialize = (d) => d as T,
 }: UseCloudSyncConfig<T>) {
   const { user } = useSession();
+  const reportError = useReportError();
 
   const [localValue, setLocalValue] = useLocalStorage<T>(
     storageKey,
     defaultValue,
   );
   const [cloudValue, setCloudValue] = useState<T>(defaultValue);
-  const [loading, setLoading] = useState(false);
+  const [cloudLoading, setCloudLoading] = useState(false);
   const seededRef = useRef(false);
-
-  const seedLocalToCloud = useEffectEvent(
-    async (cloudDb: Firestore, docPath: string) => {
-      setCloudValue(localValue);
-      const ref = doc(cloudDb, docPath);
-      await setDoc(ref, { value: serialize(localValue) }, { merge: true });
-    },
-  );
+  const saveTimerRef = useRef<number | null>(null);
+  const pendingValueRef = useRef<T | null>(null);
+  const localValueRef = useRef(localValue);
+  localValueRef.current = localValue;
+  const configRef = useRef({
+    firestorePath,
+    serialize,
+    deserialize,
+    defaultValue,
+  });
+  configRef.current = { firestorePath, serialize, deserialize, defaultValue };
 
   useEffect(() => {
+    const { firestorePath, serialize, deserialize, defaultValue } =
+      configRef.current;
+
     seededRef.current = false;
+    setCloudValue(defaultValue);
 
     if (!user || !db) {
-      setLoading(false);
+      setCloudLoading(false);
       return;
     }
 
-    const controller = new AbortController();
-    const { db: cloudDb, docPath } = firestorePath(user.uid);
-
-    void (async () => {
-      const ref = doc(cloudDb, docPath);
-
-      setLoading(true);
-      try {
-        if (controller.signal.aborted) return;
-        const snapshot = await getDoc(ref);
-        if (controller.signal.aborted || !snapshot) return;
-
-        if (snapshot.exists()) {
-          const loaded = deserialize(
-            (snapshot.data() as { value?: unknown }).value,
-          );
-          setCloudValue(loaded);
-        } else {
-          await seedLocalToCloud(cloudDb, docPath);
-        }
-
-        if (controller.signal.aborted) return;
-        seededRef.current = true;
-      } catch (error) {
-        console.error("Failed to load cloud data", error);
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      controller.abort();
-    };
-  }, [user]);
-
-  useEffect(() => {
-    if (!user || !db || !seededRef.current) return;
-
     const { db: cloudDb, docPath } = firestorePath(user.uid);
     const ref = doc(cloudDb, docPath);
-    const timer = window.setTimeout(() => {
-      void setDoc(ref, { value: serialize(cloudValue) }, { merge: true }).catch(
+    let cancelled = false;
+
+    const flushPendingSave = () => {
+      if (saveTimerRef.current !== null) {
+        window.clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      const pending = pendingValueRef.current;
+      if (pending === null) return;
+      pendingValueRef.current = null;
+      void setDoc(ref, { value: serialize(pending) }, { merge: true }).catch(
+        (error) => {
+          console.error("Failed to flush cloud data", error);
+          reportError("Could not save your latest changes to the cloud");
+        },
+      );
+    };
+
+    setCloudLoading(true);
+
+    const unsubscribe = onSnapshot(
+      ref,
+      (snapshot) => {
+        if (cancelled) return;
+        setCloudLoading(false);
+        if (snapshot.exists()) {
+          setCloudValue(
+            deserialize((snapshot.data() as { value?: unknown }).value),
+          );
+        } else if (!seededRef.current) {
+          seededRef.current = true;
+          void setDoc(
+            ref,
+            { value: serialize(localValueRef.current) },
+            {
+              merge: true,
+            },
+          ).catch((error) => {
+            console.error("Failed to seed cloud data", error);
+            reportError("Could not copy your local data to the cloud");
+          });
+        }
+      },
+      (error) => {
+        if (cancelled) return;
+        setCloudLoading(false);
+        console.error("Failed to load cloud data", error);
+        reportError("Could not load your cloud data");
+      },
+    );
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+      flushPendingSave();
+    };
+  }, [user, reportError]);
+
+  const setValue = (next: T) => {
+    if (!user || !db) {
+      setLocalValue(next);
+      return;
+    }
+    const { firestorePath, serialize } = configRef.current;
+    const { db: cloudDb, docPath } = firestorePath(user.uid);
+    const ref = doc(cloudDb, docPath);
+    pendingValueRef.current = next;
+    if (saveTimerRef.current !== null) {
+      window.clearTimeout(saveTimerRef.current);
+    }
+    saveTimerRef.current = window.setTimeout(() => {
+      saveTimerRef.current = null;
+      const pending = pendingValueRef.current;
+      if (pending === null) return;
+      pendingValueRef.current = null;
+      void setDoc(ref, { value: serialize(pending) }, { merge: true }).catch(
         (error) => {
           console.error("Failed to update cloud data", error);
+          reportError("Could not save to the cloud");
         },
       );
     }, SYNC_SAVE_DEBOUNCE_MS);
+  };
 
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [user, cloudValue]);
-
-  const value = user ? cloudValue : localValue;
-  const setValue = user ? setCloudValue : setLocalValue;
-
-  return { value, setValue, loading };
+  return {
+    value: user ? cloudValue : localValue,
+    setValue,
+    loading: Boolean(user) && cloudLoading,
+  };
 }

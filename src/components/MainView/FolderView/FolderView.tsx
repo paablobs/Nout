@@ -1,9 +1,9 @@
-import { Box, Button, ListItem, Skeleton } from "@mui/material";
+import { Box, Button, ListItem, Skeleton, Typography } from "@mui/material";
 import { Delete as DeleteIcon } from "@mui/icons-material";
+import type { ReactNode } from "react";
 import { selectedView, type SelectedView } from "../../../utils/selectedView";
-import { filterNotes } from "../../../utils/filteredNotes";
+import type { Note } from "../../../repositories/types";
 import CustomCard from "../../Card/Card";
-import type { Note } from "../../../hooks/useNotes";
 
 interface Folder {
   id: string;
@@ -14,10 +14,11 @@ interface Folder {
 interface MiddlePanelProps {
   loading: boolean;
   currentView: SelectedView;
-  notes: Record<string, Note>;
+  notes: Note[];
   folders: Folder[];
-  selectedFolderId: string | null;
   selectedNoteId: string | null;
+  searchQuery: string;
+  signedOut: boolean;
   onFavNote: (noteId: string) => void;
   onTrashNote: (noteId: string) => void;
   onMoveNoteToFolder: (noteId: string, folderId: string | null) => void;
@@ -25,15 +26,29 @@ interface MiddlePanelProps {
   onCardSelect?: (noteId: string) => void;
   onEmptyTrash?: () => void;
   onHideNote: (noteId: string) => void;
+  onNewNote: () => void;
 }
+
+const EmptyState = ({ text, action }: { text: string; action?: ReactNode }) => (
+  <Box
+    paddingX={2}
+    paddingY={6}
+    textAlign="center"
+    data-testid="notes-empty-state"
+  >
+    <Typography color="text.secondary">{text}</Typography>
+    {action ? <Box marginTop={2}>{action}</Box> : null}
+  </Box>
+);
 
 const FolderView = ({
   loading,
   currentView,
   notes,
   folders,
-  selectedFolderId,
   selectedNoteId,
+  searchQuery,
+  signedOut,
   onFavNote,
   onTrashNote,
   onMoveNoteToFolder,
@@ -41,6 +56,7 @@ const FolderView = ({
   onCardSelect,
   onEmptyTrash,
   onHideNote,
+  onNewNote,
 }: MiddlePanelProps) => {
   if (loading) {
     return (
@@ -54,7 +70,45 @@ const FolderView = ({
     );
   }
 
-  const visibleNotes = filterNotes(notes, currentView, selectedFolderId);
+  if (notes.length === 0) {
+    if (searchQuery.trim()) {
+      return <EmptyState text="No notes match your search." />;
+    }
+    switch (currentView) {
+      case selectedView.NOTES:
+        return (
+          <EmptyState
+            text={
+              signedOut
+                ? "No notes on this device. Sign in to see your cloud notes."
+                : "No notes yet."
+            }
+            action={
+              <Button data-testid="empty-state-new-note" onClick={onNewNote}>
+                New note
+              </Button>
+            }
+          />
+        );
+      case selectedView.FAVORITES:
+        return <EmptyState text="Star a note to see it here." />;
+      case selectedView.TRASH:
+        return <EmptyState text="Trash is empty." />;
+      case selectedView.FOLDERS:
+        return (
+          <EmptyState
+            text="This folder is empty."
+            action={
+              <Button data-testid="empty-state-new-note" onClick={onNewNote}>
+                New note
+              </Button>
+            }
+          />
+        );
+      default:
+        return null;
+    }
+  }
 
   return (
     <>
@@ -77,15 +131,16 @@ const FolderView = ({
           </Button>
         </ListItem>
       )}
-      {visibleNotes.map((card) => (
+      {notes.map((card) => (
         <CustomCard
           key={card.id}
           id={card.id}
           text={card.text}
-          category={card.category}
           isFav={card.isFav}
           isTrash={card.isTrash}
           isHidden={card.isHidden}
+          updatedAt={card.updatedAt}
+          trashedAt={card.trashedAt}
           onFav={() => onFavNote(card.id)}
           onTrash={() => onTrashNote(card.id)}
           onHide={() => onHideNote(card.id)}

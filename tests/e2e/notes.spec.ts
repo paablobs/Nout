@@ -97,7 +97,6 @@ test("hide a note from Notes view", async ({ page }) => {
       [noteId]: makeNote({
         id: noteId,
         text: "Hide me",
-        category: "Custom",
         folderId,
       }),
     },
@@ -109,4 +108,7 @@ test("hide a note from Notes view", async ({ page }) => {
   await page.locator(testId(`hide-note-${noteId}`)).click();
 
   await expect(page.locator(testId(`note-card-${noteId}`))).not.toBeVisible();
+
+  await page.locator(testId("folder-btn-Custom")).click();
+  await expect(page.locator(testId(`note-card-${noteId}`))).toBeVisible();
 });

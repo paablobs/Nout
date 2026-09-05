@@ -16,8 +16,18 @@ test("empty trash permanently deletes notes", async ({ page }) => {
   const noteId2 = crypto.randomUUID();
   await seedLocalStorage(page, {
     notes: {
-      [noteId1]: makeNote({ id: noteId1, text: "Trash 1", isTrash: true }),
-      [noteId2]: makeNote({ id: noteId2, text: "Trash 2", isTrash: true }),
+      [noteId1]: makeNote({
+        id: noteId1,
+        text: "Trash 1",
+        isTrash: true,
+        trashedAt: Date.now(),
+      }),
+      [noteId2]: makeNote({
+        id: noteId2,
+        text: "Trash 2",
+        isTrash: true,
+        trashedAt: Date.now(),
+      }),
     },
   });
   await page.goto("/");
@@ -35,13 +45,20 @@ test("empty trash permanently deletes notes", async ({ page }) => {
 
   await expect(page.locator(testId(`note-card-${noteId1}`))).not.toBeVisible();
   await expect(page.locator(testId(`note-card-${noteId2}`))).not.toBeVisible();
+
+  await expect(page.getByText("Trash is empty.")).toBeVisible();
 });
 
 test("cancel empty trash keeps notes", async ({ page }) => {
   const noteId = crypto.randomUUID();
   await seedLocalStorage(page, {
     notes: {
-      [noteId]: makeNote({ id: noteId, text: "Safe", isTrash: true }),
+      [noteId]: makeNote({
+        id: noteId,
+        text: "Safe",
+        isTrash: true,
+        trashedAt: Date.now(),
+      }),
     },
   });
   await page.goto("/");
@@ -51,4 +68,25 @@ test("cancel empty trash keeps notes", async ({ page }) => {
   await page.locator(testId("empty-trash-cancel")).click();
 
   await expect(page.locator(testId(`note-card-${noteId}`))).toBeVisible();
+});
+
+test("trashing a note shows when it was trashed", async ({ page }) => {
+  const noteId = crypto.randomUUID();
+  await seedLocalStorage(page, {
+    notes: {
+      [noteId]: makeNote({
+        id: noteId,
+        text: "Recently trashed",
+        isTrash: true,
+        trashedAt: Date.now(),
+      }),
+    },
+  });
+  await page.goto("/");
+
+  await page.locator(testId("nav-trash")).click();
+
+  await expect(page.locator(testId(`note-card-${noteId}`))).toContainText(
+    "Trashed",
+  );
 });

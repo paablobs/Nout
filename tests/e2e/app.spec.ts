@@ -47,3 +47,30 @@ test("navigating to trash hides new note button", async ({ page }) => {
   await page.locator(testId("nav-trash")).click();
   await expect(page.locator(testId("new-note-btn"))).not.toBeVisible();
 });
+
+test("shows empty state for the notes view", async ({ page }) => {
+  await expect(
+    page.getByText("No notes on this device. Sign in to see your cloud notes."),
+  ).toBeVisible();
+  await expect(page.locator(testId("empty-state-new-note"))).toBeVisible();
+});
+
+test("shows empty state for the favorites view", async ({ page }) => {
+  await page.locator(testId("nav-favorites")).click();
+  await expect(page.getByText("Star a note to see it here.")).toBeVisible();
+});
+
+test("shows empty state for the trash view and hides the empty button", async ({
+  page,
+}) => {
+  await page.locator(testId("nav-trash")).click();
+  await expect(page.getByText("Trash is empty.")).toBeVisible();
+  await expect(page.locator(testId("empty-trash-btn"))).not.toBeVisible();
+});
+
+test("shows the local-only hint when signed out", async ({ page }) => {
+  await expect(page.locator(testId("local-only-hint"))).toBeVisible();
+  await expect(page.locator(testId("local-only-hint"))).toContainText(
+    "Notes are stored in this browser only.",
+  );
+});

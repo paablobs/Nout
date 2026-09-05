@@ -94,8 +94,72 @@ test("deleting a folder trashes its notes", async ({ page }) => {
   await page.goto("/");
 
   await page.locator(testId("delete-folder-Folder to Delete")).click();
+
+  await expect(page.locator(testId("delete-folder-dialog"))).toContainText(
+    "Its 1 note will be moved to Trash",
+  );
   await page.locator(testId("delete-folder-confirm")).click();
 
   await page.locator(testId("nav-trash")).click();
   await expect(page.locator(testId(`note-card-${noteId}`))).toBeVisible();
+});
+
+test("rename a folder via dialog", async ({ page }) => {
+  await seedLocalStorage(page, {
+    folders: [makeFolder({ id: "folder-1", name: "Old Name" })],
+  });
+  await page.goto("/");
+
+  await page.locator(testId("rename-folder-Old Name")).click();
+
+  await expect(page.locator(testId("rename-folder-dialog"))).toBeVisible();
+  await expect(page.locator(testId("folder-rename-input"))).toHaveValue(
+    "Old Name",
+  );
+
+  await page.locator(testId("folder-rename-input")).fill("New Name");
+  await page.locator(testId("rename-folder-submit")).click();
+
+  await expect(page.locator(testId("rename-folder-dialog"))).not.toBeVisible();
+  await expect(page.locator(testId("folder-btn-New Name"))).toBeVisible();
+  await expect(page.locator(testId("folder-btn-Old Name"))).not.toBeVisible();
+});
+
+test("renaming a folder updates the label on its note cards", async ({
+  page,
+}) => {
+  const noteId = crypto.randomUUID();
+  await seedLocalStorage(page, {
+    notes: {
+      [noteId]: makeNote({
+        id: noteId,
+        text: "Labeled note",
+        folderId: "folder-1",
+      }),
+    },
+    folders: [makeFolder({ id: "folder-1", name: "Old Name" })],
+  });
+  await page.goto("/");
+
+  await page.locator(testId("rename-folder-Old Name")).click();
+  await page.locator(testId("folder-rename-input")).fill("New Name");
+  await page.locator(testId("rename-folder-submit")).click();
+
+  await expect(page.locator(testId(`note-card-${noteId}`))).toContainText(
+    "New Name",
+  );
+});
+
+test("cancel folder rename keeps the original name", async ({ page }) => {
+  await seedLocalStorage(page, {
+    folders: [makeFolder({ id: "folder-1", name: "Keep me" })],
+  });
+  await page.goto("/");
+
+  await page.locator(testId("rename-folder-Keep me")).click();
+  await page.locator(testId("folder-rename-input")).fill("Changed");
+  await page.locator(testId("rename-folder-cancel")).click();
+
+  await expect(page.locator(testId("folder-btn-Keep me"))).toBeVisible();
+  await expect(page.locator(testId("folder-btn-Changed"))).not.toBeVisible();
 });

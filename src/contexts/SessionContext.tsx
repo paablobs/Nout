@@ -6,9 +6,15 @@ import {
   useState,
   type PropsWithChildren,
 } from "react";
-import { onAuthStateChanged, signOut, type User } from "firebase/auth";
+import {
+  getRedirectResult,
+  onAuthStateChanged,
+  signOut,
+  type User,
+} from "firebase/auth";
 import { auth, signInWithGoogle } from "../config/auth";
 import { firebaseEnabled } from "../config/firebase";
+import { useReportError } from "./ErrorContext";
 
 interface SessionContextValue {
   user: User | null;
@@ -19,16 +25,19 @@ interface SessionContextValue {
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
-const LOADING_FEEDBACK_DELAY_MS = 300;
 
 const initialLoading = (): boolean => {
   if (!auth || !firebaseEnabled) return false;
   return true;
 };
 
+const describeError = (error: unknown): string =>
+  error instanceof Error ? error.message : "unknown error";
+
 export const SessionProvider = ({ children }: PropsWithChildren) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(initialLoading);
+  const reportError = useReportError();
 
   useEffect(() => {
     if (!auth || !firebaseEnabled) return;
@@ -38,8 +47,12 @@ export const SessionProvider = ({ children }: PropsWithChildren) => {
       setLoading(false);
     });
 
+    void getRedirectResult(auth).catch((error) => {
+      reportError(`Sign-in failed: ${describeError(error)}`);
+    });
+
     return unsubscribe;
-  }, []);
+  }, [reportError]);
 
   const value = useMemo<SessionContextValue>(
     () => ({
@@ -51,6 +64,8 @@ export const SessionProvider = ({ children }: PropsWithChildren) => {
         setLoading(true);
         try {
           await signInWithGoogle();
+        } catch (error) {
+          reportError(`Sign-in failed: ${describeError(error)}`);
         } finally {
           setLoading(false);
         }
@@ -59,22 +74,18 @@ export const SessionProvider = ({ children }: PropsWithChildren) => {
         if (!auth) return;
         setLoading(true);
         try {
-          await new Promise<void>((resolve) => {
-            window.setTimeout(resolve, LOADING_FEEDBACK_DELAY_MS);
-          });
           await signOut(auth);
         } finally {
           setLoading(false);
         }
       },
     }),
-    [user, loading],
+    [user, loading, reportError],
   );
 
   return <SessionContext value={value}>{children}</SessionContext>;
 };
 
-// eslint-disable-next-line react/only-export-components
 export const useSession = () => {
   const context = use(SessionContext);
 

@@ -1,10 +1,12 @@
 export interface Note {
   id: string;
   text: string;
-  category: string;
   isFav: boolean;
   isTrash: boolean;
   isHidden: boolean;
+  createdAt: number;
+  updatedAt: number;
+  trashedAt?: number;
   folderId?: string;
 }
 

@@ -4,28 +4,19 @@ import {
   type Firestore,
   getDocs,
   setDoc,
-  writeBatch,
 } from "firebase/firestore";
 import type { Folder, FoldersRepository } from "../types";
+import { commitInBatches, type BatchOperation } from "./firestoreBatch";
 
-const FIRESTORE_BATCH_LIMIT = 500;
-type BatchOperation = (batch: ReturnType<typeof writeBatch>) => void;
-
-const commitInBatches = async (
-  cloudDb: Firestore,
-  operations: BatchOperation[],
-) => {
-  for (
-    let index = 0;
-    index < operations.length;
-    index += FIRESTORE_BATCH_LIMIT
-  ) {
-    const batch = writeBatch(cloudDb);
-    operations
-      .slice(index, index + FIRESTORE_BATCH_LIMIT)
-      .forEach((operation) => operation(batch));
-    await batch.commit();
+const folderToDoc = (folder: Folder): Record<string, unknown> => {
+  const data: Record<string, unknown> = {
+    id: folder.id,
+    name: folder.name,
+  };
+  if (folder.color !== undefined) {
+    data.color = folder.color;
   }
+  return data;
 };
 
 export function createCloudFoldersRepository(
@@ -37,16 +28,24 @@ export function createCloudFoldersRepository(
   return {
     async getAll() {
       const snapshot = await getDocs(foldersRef);
-      return snapshot.docs.map((item) => item.data() as Folder);
+      return snapshot.docs.map((item) => {
+        const data = item.data() as Partial<Folder>;
+        return {
+          id: typeof data.id === "string" ? data.id : item.id,
+          name: typeof data.name === "string" ? data.name : "",
+          ...(typeof data.color === "string" ? { color: data.color } : {}),
+        };
+      });
     },
 
     async upsert(folder) {
-      await setDoc(doc(foldersRef, folder.id), folder);
+      await setDoc(doc(foldersRef, folder.id), folderToDoc(folder));
     },
 
     async upsertBatch(folders) {
       const operations: BatchOperation[] = folders.map(
-        (folder) => (batch) => batch.set(doc(foldersRef, folder.id), folder),
+        (folder) => (batch) =>
+          batch.set(doc(foldersRef, folder.id), folderToDoc(folder)),
       );
       await commitInBatches(cloudDb, operations);
     },

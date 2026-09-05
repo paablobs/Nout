@@ -61,9 +61,6 @@ importers:
       react-dom:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
-      uuid:
-        specifier: ^11.1.1
-        version: 11.1.1
     devDependencies:
       '@firebase/rules-unit-testing':
         specifier: ^5.0.1

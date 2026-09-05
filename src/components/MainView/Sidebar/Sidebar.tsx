@@ -1,4 +1,6 @@
 import {
+  Box,
+  Chip,
   ListItem,
   ListItemButton,
   ListItemIcon,
@@ -20,7 +22,9 @@ import {
   NotesOutlined as NotesIcon,
   CreateNewFolderOutlined as CreateNewFolderIcon,
   EditNoteOutlined as NewNoteIcon,
+  EditOutlined as RenameFolderIcon,
   CodeOutlined as CodeIcon,
+  WifiOffOutlined as WifiOffIcon,
 } from "@mui/icons-material";
 import { yellow } from "@mui/material/colors";
 
@@ -41,12 +45,14 @@ interface LeftPanelProps {
   cloudEnabled: boolean;
   cloudConnected: boolean;
   signedInEmail: string | null;
+  offline: boolean;
   onCloudSignIn: () => Promise<void>;
-  onCloudSignOut: () => Promise<void>;
+  onCloudSignOut: () => void;
   onViewChange: (view: SelectedView) => void;
   onFolderSelect: (folderId: string) => void;
   onAddFolder: () => void;
   onDeleteFolder: (folder: Folder) => void;
+  onRenameFolder: (folder: Folder) => void;
   onNewNote: () => void;
 }
 
@@ -58,16 +64,29 @@ const Sidebar = ({
   cloudEnabled,
   cloudConnected,
   signedInEmail,
+  offline,
   onCloudSignIn,
   onCloudSignOut,
   onViewChange,
   onFolderSelect,
   onAddFolder,
   onDeleteFolder,
+  onRenameFolder,
   onNewNote,
 }: LeftPanelProps) => {
   return (
     <Grid container spacing={0} direction={"column"} height={"100%"}>
+      {offline && (
+        <Box paddingX={2} paddingTop={2}>
+          <Chip
+            data-testid="offline-chip"
+            icon={<WifiOffIcon />}
+            label="Offline. Changes will sync."
+            size="small"
+            color="warning"
+          />
+        </Box>
+      )}
       <Grid size="auto">
         <List>
           <ListItem sx={{ paddingRight: 0, paddingTop: 0 }}>
@@ -177,14 +196,26 @@ const Sidebar = ({
                 data-testid={`folder-item-${folder.name}`}
                 disablePadding
                 secondaryAction={
-                  <IconButton
-                    edge="end"
-                    data-testid={`delete-folder-${folder.name}`}
-                    onClick={() => onDeleteFolder(folder)}
-                    aria-label="delete-folder"
-                  >
-                    <ClearIcon />
-                  </IconButton>
+                  <Box>
+                    <IconButton
+                      edge="end"
+                      data-testid={`rename-folder-${folder.name}`}
+                      onClick={() => onRenameFolder(folder)}
+                      aria-label="rename-folder"
+                      size="small"
+                    >
+                      <RenameFolderIcon />
+                    </IconButton>
+                    <IconButton
+                      edge="end"
+                      data-testid={`delete-folder-${folder.name}`}
+                      onClick={() => onDeleteFolder(folder)}
+                      aria-label="delete-folder"
+                      size="small"
+                    >
+                      <ClearIcon />
+                    </IconButton>
+                  </Box>
                 }
               >
                 <ListItemButton
@@ -223,6 +254,16 @@ const Sidebar = ({
             Signed as: {signedInEmail}
           </Typography>
         )}
+        {!cloudConnected && (
+          <Typography
+            data-testid="local-only-hint"
+            variant="body2"
+            color="text.secondary"
+            marginBottom={1}
+          >
+            Notes are stored in this browser only.
+          </Typography>
+        )}
         <Button
           data-testid="cloud-auth-btn"
           fullWidth
@@ -231,7 +272,7 @@ const Sidebar = ({
           disabled={!cloudEnabled || loading}
           onClick={() => {
             if (cloudConnected) {
-              void onCloudSignOut();
+              onCloudSignOut();
             } else {
               void onCloudSignIn();
             }

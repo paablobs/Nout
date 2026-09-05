@@ -1,5 +1,6 @@
-import { selectedView, type SelectedView } from "../utils/selectedView";
+import { selectedView, type SelectedView } from "./selectedView";
 import type { Note } from "../repositories/types";
+import { sortByTrashedAtDesc, sortByUpdatedAtDesc } from "./noteQuery";
 
 export function filterNotes(
   notes: Record<string, Note>,
@@ -43,5 +44,10 @@ export function getFirstSelectableNoteId(
   folderId: string | null,
 ): string | null {
   if (view === selectedView.SCRATCHPAD) return null;
-  return filterNotes(notes, view, folderId)[0]?.id ?? null;
+  const visible = filterNotes(notes, view, folderId);
+  const sorted =
+    view === selectedView.TRASH
+      ? sortByTrashedAtDesc(visible)
+      : sortByUpdatedAtDesc(visible);
+  return sorted[0]?.id ?? null;
 }

@@ -56,6 +56,7 @@ const CreateFolderDialog = ({
             fullWidth
             variant="standard"
             value={folderName}
+            slotProps={{ htmlInput: { maxLength: 80 } }}
             onChange={(e) => setFolderName(e.target.value)}
           />
         </DialogContent>
