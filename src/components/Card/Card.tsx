@@ -125,6 +125,7 @@ const CustomCard = ({
           onClick={
             onSelect
               ? (e) => {
+                  if (menuAnchor) return;
                   const target = e.target as HTMLElement;
                   if (target.closest("button, [role='menuitem']")) return;
                   onSelect(id);
@@ -199,50 +200,54 @@ const CustomCard = ({
                     setFolderPickerOpen(false);
                   }}
                 >
-                  {!folderPickerOpen && (
-                    <>
-                      {onMoveToFolder &&
+                  {!folderPickerOpen
+                    ? [
+                        ...(onMoveToFolder &&
                         (folders || []).filter((f) => f.id !== folderId)
-                          .length > 0 && (
+                          .length > 0
+                          ? [
+                              <MenuItem
+                                key="move-folder"
+                                data-testid={`move-folder-menu-${id}`}
+                                onClick={() => setFolderPickerOpen(true)}
+                              >
+                                Move to folder
+                              </MenuItem>,
+                            ]
+                          : []),
+                        ...(folderId && onHide
+                          ? [
+                              <MenuItem
+                                key="hide-note"
+                                data-testid={`hide-note-${id}`}
+                                onClick={() => {
+                                  setMenuAnchor(null);
+                                  setFolderPickerOpen(false);
+                                  onHide(id);
+                                }}
+                              >
+                                {isHidden
+                                  ? `Show in ${DEFAULT_CATEGORY}`
+                                  : `Hide from ${DEFAULT_CATEGORY}`}
+                              </MenuItem>,
+                            ]
+                          : []),
+                      ]
+                    : (folders || [])
+                        .filter((f) => f.id !== folderId)
+                        .map((folder) => (
                           <MenuItem
-                            data-testid={`move-folder-menu-${id}`}
-                            onClick={() => setFolderPickerOpen(true)}
+                            key={folder.id}
+                            data-testid={`move-to-folder-${folder.name}`}
+                            onClick={() => {
+                              setMenuAnchor(null);
+                              setFolderPickerOpen(false);
+                              onMoveToFolder?.(id, folder.id);
+                            }}
                           >
-                            Move to folder
+                            {folder.name}
                           </MenuItem>
-                        )}
-                      {folderId && onHide && (
-                        <MenuItem
-                          data-testid={`hide-note-${id}`}
-                          onClick={() => {
-                            setMenuAnchor(null);
-                            setFolderPickerOpen(false);
-                            onHide(id);
-                          }}
-                        >
-                          {isHidden
-                            ? `Show in ${DEFAULT_CATEGORY}`
-                            : `Hide from ${DEFAULT_CATEGORY}`}
-                        </MenuItem>
-                      )}
-                    </>
-                  )}
-                  {folderPickerOpen &&
-                    (folders || [])
-                      .filter((f) => f.id !== folderId)
-                      .map((folder) => (
-                        <MenuItem
-                          key={folder.id}
-                          data-testid={`move-to-folder-${folder.name}`}
-                          onClick={() => {
-                            setMenuAnchor(null);
-                            setFolderPickerOpen(false);
-                            onMoveToFolder?.(id, folder.id);
-                          }}
-                        >
-                          {folder.name}
-                        </MenuItem>
-                      ))}
+                        ))}
                 </Menu>
                 <IconButton
                   data-testid={`trash-btn-${id}`}
@@ -325,7 +330,20 @@ const CustomCard = ({
       <Card
         className="box__card"
         variant="outlined"
-        onClick={onSelect ? () => onSelect(id) : undefined}
+        onClick={
+          onSelect
+            ? (e) => {
+                const target = e.target as HTMLElement;
+                if (
+                  target.closest(
+                    "[role='menuitem'], [role='menu'], .MuiBackdrop-root",
+                  )
+                )
+                  return;
+                onSelect(id);
+              }
+            : undefined
+        }
         data-active={selected ? "true" : undefined}
         sx={
           selected

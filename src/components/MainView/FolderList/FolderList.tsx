@@ -1,5 +1,6 @@
 import {
   Box,
+  Button,
   IconButton,
   List,
   ListItemButton,
@@ -10,6 +11,7 @@ import {
 } from "@mui/material";
 import FolderIcon from "@mui/icons-material/FolderOutlined";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolderOutlined";
 import { useState } from "react";
 
 interface Folder {
@@ -23,6 +25,7 @@ interface FolderListProps {
   onFolderSelect: (folderId: string) => void;
   onRenameFolder: (folder: Folder) => void;
   onDeleteFolder: (folder: Folder) => void;
+  onAddFolder?: () => void;
 }
 
 const FolderList = ({
@@ -30,6 +33,7 @@ const FolderList = ({
   onFolderSelect,
   onRenameFolder,
   onDeleteFolder,
+  onAddFolder,
 }: FolderListProps) => {
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [menuFolder, setMenuFolder] = useState<Folder | null>(null);
@@ -51,12 +55,36 @@ const FolderList = ({
         <p style={{ color: "rgba(255,255,255,0.6)" }}>
           No folders yet. Create one to organize your notes.
         </p>
+        {onAddFolder && (
+          <Button
+            data-testid="new-folder-btn"
+            variant="outlined"
+            startIcon={<CreateNewFolderIcon />}
+            onClick={onAddFolder}
+            sx={{ marginTop: 1 }}
+          >
+            New folder
+          </Button>
+        )}
       </Box>
     );
   }
 
   return (
     <>
+      {onAddFolder && (
+        <Box paddingX={2} paddingY={1}>
+          <Button
+            data-testid="new-folder-btn"
+            variant="outlined"
+            fullWidth
+            startIcon={<CreateNewFolderIcon />}
+            onClick={onAddFolder}
+          >
+            New folder
+          </Button>
+        </Box>
+      )}
       <List disablePadding>
         {folders.map((folder) => (
           <ListItemButton

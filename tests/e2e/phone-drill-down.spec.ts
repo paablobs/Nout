@@ -84,6 +84,51 @@ test("new note FAB is hidden in trash view on phone", async ({
   await expect(page.locator(testId("fab-new-note"))).not.toBeVisible();
 });
 
+test("folder drill-down has a back button returning to the folder list", async ({
+  page,
+  isMobile,
+}) => {
+  if (!isMobile) {
+    test.skip();
+  }
+
+  await seedLocalStorage(page, {
+    folders: [makeFolder({ id: "f1", name: "My Folder" })],
+  });
+  await page.goto("/");
+
+  await page.locator(testId("nav-folders")).click();
+  await page.locator(testId("folder-list-item-My Folder")).click();
+  await expect(page.locator('[aria-label="Back to folders"]')).toBeVisible();
+
+  await page.locator('[aria-label="Back to folders"]').click();
+  await expect(
+    page.locator(testId("folder-list-item-My Folder")),
+  ).toBeVisible();
+});
+
+test("re-tapping the folders tab exits the open folder", async ({
+  page,
+  isMobile,
+}) => {
+  if (!isMobile) {
+    test.skip();
+  }
+
+  await seedLocalStorage(page, {
+    folders: [makeFolder({ id: "f1", name: "My Folder" })],
+  });
+  await page.goto("/");
+
+  await page.locator(testId("nav-folders")).click();
+  await page.locator(testId("folder-list-item-My Folder")).click();
+  await expect(page.locator('[aria-label="Back to folders"]')).toBeVisible();
+
+  await page.locator(testId("nav-folders")).click();
+  await expect(
+    page.locator(testId("folder-list-item-My Folder")),
+  ).toBeVisible();
+});
 test("phone folders tab shows folder list", async ({ page, isMobile }) => {
   if (!isMobile) {
     test.skip();

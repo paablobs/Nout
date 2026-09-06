@@ -18,6 +18,9 @@
   min-height: 0;
   display: flex;
   overflow: hidden;
+  margin: 0;
+  width: 100%;
+  max-width: 100%;
 }
 
 .mainView__leftPanel {
@@ -27,6 +30,7 @@
 .mainView__middlePanel {
   height: 100%;
   flex: 1 1 auto;
+  min-width: 0;
   scrollbar-color: rgba(255, 255, 255, 0.315) transparent;
   overflow: auto;
   display: flex;

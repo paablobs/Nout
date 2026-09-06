@@ -60,7 +60,16 @@ const BottomNav = ({ currentView, onViewChange }: BottomNavProps) => {
       onChange={(_event, newValue) => {
         onViewChange(TABS[newValue].view);
       }}
-      sx={{ flexShrink: 0 }}
+      sx={{
+        flexShrink: 0,
+        width: "100%",
+        maxWidth: "100%",
+        "& .MuiBottomNavigationAction-root": {
+          minWidth: 0,
+          flex: "1 1 0",
+          padding: "6px 0",
+        },
+      }}
     >
       {TABS.map((tab) => (
         <BottomNavigationAction

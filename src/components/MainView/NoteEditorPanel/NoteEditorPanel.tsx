@@ -37,11 +37,6 @@ export const NoteEditorPanel = ({
   editorTitle,
   onTrash,
 }: NoteEditorPanelProps) => {
-  const showEditor =
-    Boolean(effectiveSelectedNoteId) || currentView === selectedView.SCRATCHPAD;
-
-  if (!showEditor) return null;
-
   const content =
     currentView === selectedView.SCRATCHPAD
       ? scratchpadValue
@@ -53,7 +48,14 @@ export const NoteEditorPanel = ({
     return (
       <Box
         className="mainView__rightPanel"
-        sx={{ display: "flex", flexDirection: "column", height: "100%" }}
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          height: "100%",
+          flex: 1,
+          minWidth: 0,
+          width: "100%",
+        }}
       >
         <AppBar position="static" color="default" elevation={1}>
           <Toolbar variant="dense">

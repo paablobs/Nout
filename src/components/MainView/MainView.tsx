@@ -11,6 +11,7 @@ import {
   useTheme,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import PersonIcon from "@mui/icons-material/Person";
 
 import useNotes, { type Note } from "../../hooks/useNotes";
@@ -119,6 +120,8 @@ const MainView = () => {
   const viewStateRef = useRef(viewState);
   viewStateRef.current = viewState;
 
+  const scratchpadReturnRef = useRef<SelectedView | null>(null);
+
   const effectiveSelectedNoteId = useMemo(
     () =>
       resolveEffectiveSelectedNoteId(
@@ -159,6 +162,16 @@ const MainView = () => {
     !showEditorOnPhone && currentView !== selectedView.SCRATCHPAD;
   const showFolderList =
     isPhone && currentView === selectedView.FOLDERS && !selectedFolderId;
+  const showFolderBack =
+    isPhone &&
+    !showEditorOnPhone &&
+    currentView === selectedView.FOLDERS &&
+    Boolean(selectedFolderId);
+
+  const showEditor = isPhone
+    ? showEditorOnPhone
+    : Boolean(effectiveSelectedNoteId) ||
+      currentView === selectedView.SCRATCHPAD;
 
   // Editor title for the phone AppBar
   const editorTitle = useMemo(() => {
@@ -193,7 +206,11 @@ const MainView = () => {
         selectedFolderId: folderId,
         currentView: view,
       } = viewStateRef.current;
-      if (noteId) {
+      if (view === selectedView.SCRATCHPAD) {
+        const returnTo = scratchpadReturnRef.current ?? selectedView.NOTES;
+        scratchpadReturnRef.current = null;
+        viewDispatch({ type: "viewChange", view: returnTo });
+      } else if (noteId) {
         viewDispatch({ type: "noteSelect", noteId: null });
       } else if (folderId && view === selectedView.FOLDERS) {
         viewDispatch({ type: "clearFolderSelection" });
@@ -231,6 +248,14 @@ const MainView = () => {
   };
 
   const handleEditorBack = () => {
+    if (isPhone && currentView === selectedView.SCRATCHPAD) {
+      if (scratchpadReturnRef.current === null) {
+        viewDispatch({ type: "viewChange", view: selectedView.NOTES });
+        return;
+      }
+      history.back();
+      return;
+    }
     history.back();
   };
 
@@ -269,10 +294,30 @@ const MainView = () => {
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
   const handleViewChange = (view: SelectedView) => {
+    if (
+      isPhone &&
+      view === selectedView.SCRATCHPAD &&
+      currentView !== selectedView.SCRATCHPAD
+    ) {
+      scratchpadReturnRef.current = currentView;
+      history.pushState({ scratchpad: true }, "");
+    }
+    if (
+      isPhone &&
+      view === selectedView.FOLDERS &&
+      currentView === selectedView.FOLDERS &&
+      selectedFolderId
+    ) {
+      viewDispatch({ type: "clearFolderSelection" });
+    }
     viewDispatch({ type: "viewChange", view });
     viewDispatch({ type: "noteSelect", noteId: null });
     setSearchQuery("");
     closeMobileMenu();
+  };
+
+  const handleFolderBack = () => {
+    history.back();
   };
 
   const handleFolderSelect = (folderId: string) => {
@@ -306,6 +351,17 @@ const MainView = () => {
       )}
       {isPhone && !showEditorOnPhone && (
         <div className="mainView__phoneToolbar" data-testid="phone-top-bar">
+          {showFolderBack && (
+            <IconButton
+              aria-label="Back to folders"
+              onClick={handleFolderBack}
+              edge="start"
+              size="small"
+              sx={{ mr: 0.5 }}
+            >
+              <ArrowBackIcon />
+            </IconButton>
+          )}
           <Typography variant="subtitle1" sx={{ flex: 1, fontWeight: 600 }}>
             {viewTitle}
           </Typography>
@@ -383,7 +439,12 @@ const MainView = () => {
           />
         </Drawer>
       )}
-      <Grid container spacing={3} className="mainView__gridContainer">
+      <Grid
+        container
+        spacing={0}
+        sx={{ gap: 3 }}
+        className="mainView__gridContainer"
+      >
         {!isBelowDesktop && (
           <Grid sx={{ width: 300 }}>
             <div className="mainView__leftPanel">
@@ -414,7 +475,11 @@ const MainView = () => {
         )}
         {showList && (
           <Grid
-            sx={{ maxWidth: isPhone ? "100%" : 400 }}
+            sx={{
+              maxWidth: isPhone ? "100%" : 400,
+              minWidth: 0,
+              flex: isPhone ? "1 1 100%" : undefined,
+            }}
             className="mainView__middlePanel"
             gap={1}
             padding={1}
@@ -427,6 +492,7 @@ const MainView = () => {
                   viewDispatch({ type: "folderSelect", folderId: id });
                   if (isPhone) history.pushState({ folderId: id }, "");
                 }}
+                onAddFolder={() => dialogDispatch({ type: "openCreateFolder" })}
                 onRenameFolder={(folder) =>
                   dialogDispatch({ type: "openRenameFolder", folder })
                 }
@@ -448,7 +514,9 @@ const MainView = () => {
                   currentView={currentView}
                   notes={listedNotes}
                   folders={folders}
-                  selectedNoteId={effectiveSelectedNoteId}
+                  selectedNoteId={
+                    isPhone ? selectedNoteId : effectiveSelectedNoteId
+                  }
                   searchQuery={searchQuery}
                   signedOut={!user}
                   compact={isPhone}
@@ -467,20 +535,24 @@ const MainView = () => {
             )}
           </Grid>
         )}
-        <NoteEditorPanel
-          loading={loading}
-          currentView={currentView}
-          scratchpadValue={scratchpad.value}
-          selectedNote={selectedNote}
-          effectiveSelectedNoteId={effectiveSelectedNoteId}
-          onChange={handleEditorChange}
-          isPhone={isPhone}
-          onBack={handleEditorBack}
-          editorTitle={editorTitle}
-          onTrash={
-            currentView !== selectedView.TRASH ? handleEditorTrash : undefined
-          }
-        />
+        {showEditor && (
+          <NoteEditorPanel
+            loading={loading}
+            currentView={currentView}
+            scratchpadValue={scratchpad.value}
+            selectedNote={selectedNote}
+            effectiveSelectedNoteId={effectiveSelectedNoteId}
+            onChange={handleEditorChange}
+            isPhone={isPhone}
+            onBack={handleEditorBack}
+            editorTitle={editorTitle}
+            onTrash={
+              currentView !== selectedView.TRASH && effectiveSelectedNoteId
+                ? handleEditorTrash
+                : undefined
+            }
+          />
+        )}
       </Grid>
       {isPhone && !showEditorOnPhone && (
         <BottomNav currentView={currentView} onViewChange={handleViewChange} />
