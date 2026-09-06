@@ -1,5 +1,5 @@
 import type { Folder, Note } from "../repositories/types";
-import { backfillTrashedAt } from "./noteSchema";
+import { backfillTrashedAt, sanitizeNoteTimestamps } from "./noteSchema";
 
 export interface MigrationPlan {
   notesToWrite: Note[];
@@ -27,14 +27,20 @@ export function planMigration(input: MigrationInput): MigrationPlan {
   const localNotes = backfillTrashedAt(input.localNotes, input.now);
   for (const note of Object.values(localNotes)) {
     const cloud = input.cloudNotes[note.id];
-    if (!cloud || note.updatedAt > cloud.updatedAt) {
-      notesToWrite.push(note);
+    const sanitized = sanitizeNoteTimestamps(note, input.now);
+    if (!cloud || sanitized.updatedAt > cloud.updatedAt) {
+      notesToWrite.push(sanitized);
     }
   }
 
   for (const cloudNote of Object.values(input.cloudNotes)) {
     if (cloudNote.isTrash && cloudNote.trashedAt === undefined) {
-      notesToWrite.push({ ...cloudNote, trashedAt: input.now });
+      notesToWrite.push(
+        sanitizeNoteTimestamps(
+          { ...cloudNote, trashedAt: input.now },
+          input.now,
+        ),
+      );
     }
   }
 

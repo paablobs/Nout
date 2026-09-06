@@ -18,6 +18,13 @@ service cloud.firestore {
       return !(field in data) || data[field] is number;
     }
 
+    function hasOptionalCategory(data) {
+      return !( "category" in data)
+        || (data["category"] is string
+            && data["category"].size() > 0
+            && data["category"].size() <= 100);
+    }
+
     function isValidFolder(folderId) {
       return request.resource.data.keys().hasAll(["id", "name"])
         && request.resource.data.keys().hasOnly(["id", "name", "color"])
@@ -35,9 +42,7 @@ service cloud.firestore {
           "text",
           "isFav",
           "isTrash",
-          "isHidden",
-          "createdAt",
-          "updatedAt"
+          "isHidden"
         ])
         && request.resource.data.keys().hasOnly([
           "id",
@@ -48,7 +53,8 @@ service cloud.firestore {
           "createdAt",
           "updatedAt",
           "folderId",
-          "trashedAt"
+          "trashedAt",
+          "category"
         ])
         && request.resource.data.id is string
         && request.resource.data.id == noteId
@@ -57,11 +63,16 @@ service cloud.firestore {
         && request.resource.data.isFav is bool
         && request.resource.data.isTrash is bool
         && request.resource.data.isHidden is bool
-        && request.resource.data.createdAt is number
-        && request.resource.data.updatedAt is number
-        && request.resource.data.updatedAt >= request.resource.data.createdAt
+        && hasOptionalNumber(request.resource.data, "createdAt")
+        && hasOptionalNumber(request.resource.data, "updatedAt")
+        && (
+          !("createdAt" in request.resource.data)
+          || !("updatedAt" in request.resource.data)
+          || request.resource.data.updatedAt >= request.resource.data.createdAt
+        )
         && hasOptionalString(request.resource.data, "folderId", 128)
-        && hasOptionalNumber(request.resource.data, "trashedAt");
+        && hasOptionalNumber(request.resource.data, "trashedAt")
+        && hasOptionalCategory(request.resource.data);
     }
 
     function isValidScratchpad() {

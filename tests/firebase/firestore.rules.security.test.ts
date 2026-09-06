@@ -319,14 +319,14 @@ describe("Firestore aggressive security tests", () => {
       await assertFails(aliceDb().doc("users/alice/notes/n1").set(noText));
     });
 
-    it("rejects note without createdAt", async () => {
+    it("allows note without createdAt for backward compatibility", async () => {
       const no = omit(VALID_NOTE, "createdAt");
-      await assertFails(aliceDb().doc("users/alice/notes/n1").set(no));
+      await assertSucceeds(aliceDb().doc("users/alice/notes/n1").set(no));
     });
 
-    it("rejects note without updatedAt", async () => {
+    it("allows note without updatedAt for backward compatibility", async () => {
       const no = omit(VALID_NOTE, "updatedAt");
-      await assertFails(aliceDb().doc("users/alice/notes/n1").set(no));
+      await assertSucceeds(aliceDb().doc("users/alice/notes/n1").set(no));
     });
 
     it("rejects note without isFav", async () => {
@@ -528,8 +528,8 @@ describe("Firestore aggressive security tests", () => {
       );
     });
 
-    it("rejects note with a legacy category field", async () => {
-      await assertFails(
+    it("allows note with a legacy category field for backward compatibility", async () => {
+      await assertSucceeds(
         aliceDb()
           .doc("users/alice/notes/n1")
           .set({ ...VALID_NOTE, category: "Notes" }),

@@ -22,3 +22,10 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_NOUT_103F0 }}
           channelId: live
           projectId: nout-103f0
+      - name: Deploy Firestore security rules
+        run: |
+          printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/service-account.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/service-account.json"
+          pnpm exec firebase deploy --only firestore:rules --project nout-103f0 --non-interactive --force
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_NOUT_103F0 }}
