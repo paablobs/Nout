@@ -41,6 +41,30 @@ test("tapping a note opens a full-screen editor with back button", async ({
   }
 });
 
+test("browser forward reopens a note after navigating back", async ({
+  page,
+  isMobile,
+}) => {
+  if (!isMobile) {
+    test.skip();
+  }
+
+  const noteId = crypto.randomUUID();
+  await seedLocalStorage(page, {
+    notes: { [noteId]: makeNote({ id: noteId, text: "Forward test" }) },
+  });
+  await page.goto("/");
+
+  await page.locator(testId(`note-card-${noteId}`)).click();
+  await expect(page.locator('[aria-label="Back"]')).toBeVisible();
+
+  await page.goBack();
+  await expect(page.locator(testId(`note-card-${noteId}`))).toBeVisible();
+
+  await page.goForward();
+  await expect(page.locator('[aria-label="Back"]')).toBeVisible();
+});
+
 test("bottom nav shows on phone", async ({ page, isMobile }) => {
   if (!isMobile) {
     test.skip();
@@ -105,6 +129,33 @@ test("folder drill-down has a back button returning to the folder list", async (
   await expect(
     page.locator(testId("folder-list-item-My Folder")),
   ).toBeVisible();
+});
+
+test("deleting a folder note returns to that folder", async ({
+  page,
+  isMobile,
+}) => {
+  if (!isMobile) {
+    test.skip();
+  }
+
+  const folderId = "f1";
+  const noteId = crypto.randomUUID();
+  await seedLocalStorage(page, {
+    folders: [makeFolder({ id: folderId, name: "My Folder" })],
+    notes: {
+      [noteId]: makeNote({ id: noteId, folderId, text: "Delete me" }),
+    },
+  });
+  await page.goto("/");
+
+  await page.locator(testId("nav-folders")).click();
+  await page.locator(testId("folder-list-item-My Folder")).click();
+  await page.locator(testId(`note-card-${noteId}`)).click();
+  await page.locator('[aria-label="Delete note"]').click();
+
+  await expect(page.locator('[aria-label="Back to folders"]')).toBeVisible();
+  await expect(page.getByText("This folder is empty.")).toBeVisible();
 });
 
 test("re-tapping the folders tab exits the open folder", async ({

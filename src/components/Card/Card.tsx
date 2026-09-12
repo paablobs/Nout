@@ -1,4 +1,3 @@
-import { useState } from "react";
 import Card from "@mui/material/Card";
 import Box from "@mui/material/Box";
 import CardActions from "@mui/material/CardActions";
@@ -22,49 +21,31 @@ import { alpha } from "@mui/material";
 import { DEFAULT_CATEGORY } from "../../utils/constants";
 import { getPreviewText } from "../../utils/notePreview";
 import { formatRelativeTime } from "../../utils/formatRelativeTime";
+import CompactCard from "./CompactCard";
+import type { CustomCardProps } from "./Card.types";
 import "./Card.css";
 
-interface CustomCardProps {
-  id: string;
-  text: string;
-  isFav?: boolean;
-  isTrash?: boolean;
-  isHidden?: boolean;
-  updatedAt: number;
-  trashedAt?: number;
-  onFav?: (id: string) => void;
-  onTrash?: (id: string) => void;
-  onRestore?: (id: string) => void;
-  onHide?: (id: string) => void;
-  folders?: { id: string; name: string; color?: string }[];
-  onMoveToFolder?: (noteId: string, folderId: string) => void;
-  folderId?: string | null;
-  onSelect?: (id: string) => void;
-  selected?: boolean;
-  compact?: boolean;
-}
+const CustomCard = (props: CustomCardProps) => {
+  if (props.compact) return <CompactCard {...props} />;
 
-const CustomCard = ({
-  id,
-  text,
-  isFav,
-  isTrash,
-  isHidden,
-  updatedAt,
-  trashedAt,
-  onFav,
-  onTrash,
-  onRestore,
-  onHide,
-  folders,
-  onMoveToFolder,
-  folderId,
-  onSelect,
-  selected,
-  compact,
-}: CustomCardProps) => {
-  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
-  const [folderPickerOpen, setFolderPickerOpen] = useState(false);
+  const {
+    id,
+    text,
+    isFav,
+    isTrash,
+    isHidden,
+    updatedAt,
+    trashedAt,
+    onFav,
+    onTrash,
+    onRestore,
+    onHide,
+    folders,
+    onMoveToFolder,
+    folderId,
+    onSelect,
+    selected,
+  } = props;
 
   const moveToFolderPopup = () => (
     <PopupState variant="popover" popupId={`move-folder-popup-${id}`}>
@@ -116,182 +97,6 @@ const CustomCard = ({
       ? `${folderLabel} · edited ${editedLabel}`
       : folderLabel;
 
-  if (compact) {
-    return (
-      <Box className="box" data-testid={`note-card-${id}`}>
-        <Card
-          className="box__card"
-          variant="outlined"
-          onClick={
-            onSelect
-              ? (e) => {
-                  if (menuAnchor) return;
-                  const target = e.target as HTMLElement;
-                  if (target.closest("button, [role='menuitem']")) return;
-                  onSelect(id);
-                }
-              : undefined
-          }
-          data-active={selected ? "true" : undefined}
-          sx={
-            selected
-              ? (theme) => ({
-                  backgroundColor: alpha(theme.palette.primary.main, 0.3),
-                })
-              : {}
-          }
-        >
-          <CardContent sx={{ pb: "4px !important" }}>
-            <Typography
-              variant="subtitle1"
-              component="div"
-              className="box__text"
-              noWrap
-            >
-              {getPreviewText(text)}
-            </Typography>
-            <Typography variant="caption" className="box__text" noWrap>
-              {metaLine}
-            </Typography>
-          </CardContent>
-          <CardActions sx={{ pt: 0, minHeight: 0 }}>
-            {!isTrash && (
-              <>
-                <IconButton
-                  data-testid={`fav-btn-${id}`}
-                  aria-label={
-                    isFav ? "Remove from favorites" : "Add to favorites"
-                  }
-                  onClick={
-                    onFav
-                      ? (e) => {
-                          e.stopPropagation();
-                          onFav(id);
-                        }
-                      : undefined
-                  }
-                  size="small"
-                  sx={{ width: 44, height: 44 }}
-                >
-                  {isFav ? (
-                    <StarIcon sx={{ color: yellow[700] }} />
-                  ) : (
-                    <StarredIcon />
-                  )}
-                </IconButton>
-                <Box sx={{ flex: 1 }} />
-                <IconButton
-                  data-testid={`three-dot-btn-${id}`}
-                  aria-label="More actions"
-                  size="small"
-                  sx={{ width: 44, height: 44 }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setMenuAnchor(e.currentTarget);
-                  }}
-                >
-                  <ThreeDotMenuIcon />
-                </IconButton>
-                <Menu
-                  anchorEl={menuAnchor}
-                  open={Boolean(menuAnchor)}
-                  onClose={() => {
-                    setMenuAnchor(null);
-                    setFolderPickerOpen(false);
-                  }}
-                >
-                  {!folderPickerOpen
-                    ? [
-                        ...(onMoveToFolder &&
-                        (folders || []).filter((f) => f.id !== folderId)
-                          .length > 0
-                          ? [
-                              <MenuItem
-                                key="move-folder"
-                                data-testid={`move-folder-menu-${id}`}
-                                onClick={() => setFolderPickerOpen(true)}
-                              >
-                                Move to folder
-                              </MenuItem>,
-                            ]
-                          : []),
-                        ...(folderId && onHide
-                          ? [
-                              <MenuItem
-                                key="hide-note"
-                                data-testid={`hide-note-${id}`}
-                                onClick={() => {
-                                  setMenuAnchor(null);
-                                  setFolderPickerOpen(false);
-                                  onHide(id);
-                                }}
-                              >
-                                {isHidden
-                                  ? `Show in ${DEFAULT_CATEGORY}`
-                                  : `Hide from ${DEFAULT_CATEGORY}`}
-                              </MenuItem>,
-                            ]
-                          : []),
-                      ]
-                    : (folders || [])
-                        .filter((f) => f.id !== folderId)
-                        .map((folder) => (
-                          <MenuItem
-                            key={folder.id}
-                            data-testid={`move-to-folder-${folder.name}`}
-                            onClick={() => {
-                              setMenuAnchor(null);
-                              setFolderPickerOpen(false);
-                              onMoveToFolder?.(id, folder.id);
-                            }}
-                          >
-                            {folder.name}
-                          </MenuItem>
-                        ))}
-                </Menu>
-                <IconButton
-                  data-testid={`trash-btn-${id}`}
-                  aria-label="Move note to trash"
-                  onClick={
-                    onTrash
-                      ? (e) => {
-                          e.stopPropagation();
-                          onTrash(id);
-                        }
-                      : undefined
-                  }
-                  size="small"
-                  sx={{ width: 44, height: 44 }}
-                >
-                  <DeleteOutlineIcon />
-                </IconButton>
-              </>
-            )}
-            {isTrash && (
-              <IconButton
-                data-testid={`restore-btn-${id}`}
-                aria-label="Restore note"
-                size="small"
-                sx={{ width: 44, height: 44 }}
-                onClick={
-                  onRestore
-                    ? (e) => {
-                        e.stopPropagation();
-                        onRestore(id);
-                      }
-                    : undefined
-                }
-              >
-                <RestoreIcon />
-              </IconButton>
-            )}
-          </CardActions>
-        </Card>
-      </Box>
-    );
-  }
-
-  // Desktop / non-compact layout
   const hideFromAllNotesPopup = () => (
     <PopupState variant="popover" popupId={`hide-from-notes-${id}`}>
       {(popupState) => {

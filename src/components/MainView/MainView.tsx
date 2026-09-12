@@ -40,7 +40,7 @@ import { NoteEditorPanel } from "./NoteEditorPanel/NoteEditorPanel";
 import BottomNav from "./BottomNav/BottomNav";
 import FabNewNote from "./FabNewNote/FabNewNote";
 import { useScratchpad } from "./hooks/useScratchpad";
-import { useViewState } from "./hooks/useViewState";
+import { useViewState, type ViewState } from "./hooks/useViewState";
 import { useDialogs } from "./hooks/useDialogs";
 import { useOfflineStatus } from "./hooks/useOfflineStatus";
 
@@ -51,6 +51,64 @@ const SEARCHABLE_VIEWS: ReadonlySet<string> = new Set([
   selectedView.FAVORITES,
   selectedView.FOLDERS,
 ]);
+
+interface PhoneHistoryState {
+  noutNavigation: true;
+  viewState: ViewState;
+}
+
+const phoneHistoryState = (viewState: ViewState): PhoneHistoryState => ({
+  noutNavigation: true,
+  viewState,
+});
+
+const phoneParentState = (viewState: ViewState): ViewState => {
+  if (viewState.selectedNoteId) {
+    return { ...viewState, selectedNoteId: null };
+  }
+  if (viewState.currentView === selectedView.SCRATCHPAD) {
+    return {
+      currentView: selectedView.NOTES,
+      selectedFolderId: null,
+      selectedNoteId: null,
+    };
+  }
+  if (
+    viewState.currentView === selectedView.FOLDERS &&
+    viewState.selectedFolderId
+  ) {
+    return { ...viewState, selectedFolderId: null };
+  }
+  return viewState;
+};
+
+const needsPhoneParentEntry = (viewState: ViewState): boolean =>
+  Boolean(viewState.selectedNoteId) ||
+  viewState.currentView === selectedView.SCRATCHPAD ||
+  (viewState.currentView === selectedView.FOLDERS &&
+    Boolean(viewState.selectedFolderId));
+
+const isPhoneHistoryState = (state: unknown): state is PhoneHistoryState => {
+  if (!state || typeof state !== "object") return false;
+
+  const candidate = state as {
+    noutNavigation?: unknown;
+    viewState?: Partial<ViewState>;
+  };
+  const viewState = candidate.viewState;
+  if (!viewState) return false;
+
+  return (
+    candidate.noutNavigation === true &&
+    Object.values(selectedView).includes(
+      viewState.currentView as SelectedView,
+    ) &&
+    (typeof viewState.selectedFolderId === "string" ||
+      viewState.selectedFolderId === null) &&
+    (typeof viewState.selectedNoteId === "string" ||
+      viewState.selectedNoteId === null)
+  );
+};
 
 const resolveEffectiveSelectedNoteId = (
   currentView: SelectedView,
@@ -120,18 +178,26 @@ const MainView = () => {
   const viewStateRef = useRef(viewState);
   viewStateRef.current = viewState;
 
-  const scratchpadReturnRef = useRef<SelectedView | null>(null);
-
-  const effectiveSelectedNoteId = useMemo(
-    () =>
-      resolveEffectiveSelectedNoteId(
-        currentView,
-        selectedNoteId,
-        notes,
-        selectedFolderId,
-      ),
-    [currentView, selectedNoteId, notes, selectedFolderId],
-  );
+  const effectiveSelectedNoteId = useMemo(() => {
+    if (currentView === selectedView.SCRATCHPAD) return null;
+    // On phones the editor must show exactly the selected note. Falling back
+    // to the first visible note would display and edit a different note when
+    // the selection goes stale (trashed or removed elsewhere).
+    if (isPhone) {
+      const selectedNote = selectedNoteId
+        ? (notes[selectedNoteId] ?? null)
+        : null;
+      return isNoteVisibleInView(selectedNote, currentView, selectedFolderId)
+        ? selectedNoteId
+        : null;
+    }
+    return resolveEffectiveSelectedNoteId(
+      currentView,
+      selectedNoteId,
+      notes,
+      selectedFolderId,
+    );
+  }, [currentView, selectedNoteId, notes, selectedFolderId, isPhone]);
 
   const selectedNote = effectiveSelectedNoteId
     ? (notes[effectiveSelectedNoteId] ?? null)
@@ -154,10 +220,12 @@ const MainView = () => {
 
   const isTablet = isBelowDesktop && !isPhone;
 
-  // Phone drill-down: editor visible only when a note is explicitly selected or scratchpad
+  // Phone drill-down: editor visible only when the selected note is still
+  // visible in the current view, or scratchpad
   const showEditorOnPhone =
     isPhone &&
-    (Boolean(selectedNoteId) || currentView === selectedView.SCRATCHPAD);
+    (Boolean(effectiveSelectedNoteId) ||
+      currentView === selectedView.SCRATCHPAD);
   const showList =
     !showEditorOnPhone && currentView !== selectedView.SCRATCHPAD;
   const showFolderList =
@@ -197,26 +265,45 @@ const MainView = () => {
     return "Folders";
   }, [currentView, selectedFolderId, folders]);
 
-  // History API for phone drill-down
+  // History API for phone drill-down. The popstate listener stays attached on
+  // all layouts so entries pushed on a phone still restore state when they
+  // are consumed after rotating to a wider layout.
   useEffect(() => {
-    if (!isPhone) return;
-    const handlePop = () => {
-      const {
-        selectedNoteId: noteId,
-        selectedFolderId: folderId,
-        currentView: view,
-      } = viewStateRef.current;
-      if (view === selectedView.SCRATCHPAD) {
-        const returnTo = scratchpadReturnRef.current ?? selectedView.NOTES;
-        scratchpadReturnRef.current = null;
-        viewDispatch({ type: "viewChange", view: returnTo });
-      } else if (noteId) {
-        viewDispatch({ type: "noteSelect", noteId: null });
-      } else if (folderId && view === selectedView.FOLDERS) {
-        viewDispatch({ type: "clearFolderSelection" });
+    const handlePop = (event: PopStateEvent) => {
+      if (isPhoneHistoryState(event.state)) {
+        viewDispatch({
+          type: "navigationRestore",
+          state: event.state.viewState,
+        });
       }
     };
     window.addEventListener("popstate", handlePop);
+
+    if (isPhone) {
+      // Tag the current entry so back/forward restores view state. When the
+      // phone layout is entered with an editor or folder already open (e.g. a
+      // note opened on desktop, then the window narrowed), insert a parent
+      // list entry first so the back button returns to the list instead of
+      // leaving the app.
+      const current = viewStateRef.current;
+      const top = history.state;
+      const topMatchesCurrent =
+        isPhoneHistoryState(top) &&
+        top.viewState.currentView === current.currentView &&
+        top.viewState.selectedFolderId === current.selectedFolderId &&
+        top.viewState.selectedNoteId === current.selectedNoteId;
+      if (!topMatchesCurrent) {
+        if (needsPhoneParentEntry(current)) {
+          history.replaceState(
+            phoneHistoryState(phoneParentState(current)),
+            "",
+          );
+          history.pushState(phoneHistoryState(current), "");
+        } else {
+          history.replaceState(phoneHistoryState(current), "");
+        }
+      }
+    }
     return () => window.removeEventListener("popstate", handlePop);
   }, [isPhone, viewDispatch]);
 
@@ -225,7 +312,14 @@ const MainView = () => {
     const noteId = addNote(currentView, selectedFolderId || undefined);
     viewDispatch({ type: "noteSelect", noteId });
     if (isPhone) {
-      history.pushState({ noteId }, "");
+      history.pushState(
+        phoneHistoryState({
+          currentView,
+          selectedFolderId,
+          selectedNoteId: noteId,
+        }),
+        "",
+      );
     }
   };
 
@@ -233,10 +327,17 @@ const MainView = () => {
     (noteId: string) => {
       viewDispatch({ type: "noteSelect", noteId });
       if (isPhone) {
-        history.pushState({ noteId }, "");
+        history.pushState(
+          phoneHistoryState({
+            currentView,
+            selectedFolderId,
+            selectedNoteId: noteId,
+          }),
+          "",
+        );
       }
     },
-    [viewDispatch, isPhone],
+    [viewDispatch, isPhone, currentView, selectedFolderId],
   );
 
   const handleEditorChange = (value: string) => {
@@ -248,22 +349,17 @@ const MainView = () => {
   };
 
   const handleEditorBack = () => {
-    if (isPhone && currentView === selectedView.SCRATCHPAD) {
-      if (scratchpadReturnRef.current === null) {
-        viewDispatch({ type: "viewChange", view: selectedView.NOTES });
-        return;
-      }
-      history.back();
-      return;
-    }
-    history.back();
+    if (isPhone) history.back();
   };
 
   const handleEditorTrash = () => {
     if (effectiveSelectedNoteId) {
       deleteNotes([effectiveSelectedNoteId]);
-      viewDispatch({ type: "noteSelect", noteId: null });
-      if (isPhone) history.back();
+      if (isPhone) {
+        history.back();
+      } else {
+        viewDispatch({ type: "noteSelect", noteId: null });
+      }
     }
   };
 
@@ -276,6 +372,18 @@ const MainView = () => {
     if (folderToDelete) {
       deleteFolder(folderToDelete.id);
       viewDispatch({ type: "clearFolderSelection" });
+      // Keep the current history entry in sync so a folder entry pushed on a
+      // phone does not stay orphaned after the folder is gone.
+      if (isPhone && folderToDelete.id === selectedFolderId) {
+        history.replaceState(
+          phoneHistoryState({
+            currentView,
+            selectedFolderId: null,
+            selectedNoteId: null,
+          }),
+          "",
+        );
+      }
     }
     dialogDispatch({ type: "closeDeleteFolder" });
   };
@@ -294,24 +402,30 @@ const MainView = () => {
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
   const handleViewChange = (view: SelectedView) => {
-    if (
-      isPhone &&
-      view === selectedView.SCRATCHPAD &&
-      currentView !== selectedView.SCRATCHPAD
-    ) {
-      scratchpadReturnRef.current = currentView;
-      history.pushState({ scratchpad: true }, "");
-    }
-    if (
+    const shouldClearFolder =
       isPhone &&
       view === selectedView.FOLDERS &&
       currentView === selectedView.FOLDERS &&
-      selectedFolderId
-    ) {
+      Boolean(selectedFolderId);
+    const nextFolderId = shouldClearFolder ? null : selectedFolderId;
+
+    if (shouldClearFolder) {
       viewDispatch({ type: "clearFolderSelection" });
     }
     viewDispatch({ type: "viewChange", view });
     viewDispatch({ type: "noteSelect", noteId: null });
+    if (isPhone) {
+      const state = phoneHistoryState({
+        currentView: view,
+        selectedFolderId: nextFolderId,
+        selectedNoteId: null,
+      });
+      if (view === selectedView.SCRATCHPAD && currentView !== view) {
+        history.pushState(state, "");
+      } else {
+        history.replaceState(state, "");
+      }
+    }
     setSearchQuery("");
     closeMobileMenu();
   };
@@ -323,7 +437,16 @@ const MainView = () => {
   const handleFolderSelect = (folderId: string) => {
     viewDispatch({ type: "folderSelect", folderId });
     viewDispatch({ type: "noteSelect", noteId: null });
-    if (isPhone) history.pushState({ folderId }, "");
+    if (isPhone) {
+      history.pushState(
+        phoneHistoryState({
+          currentView: selectedView.FOLDERS,
+          selectedFolderId: folderId,
+          selectedNoteId: null,
+        }),
+        "",
+      );
+    }
     setSearchQuery("");
     closeMobileMenu();
   };
@@ -488,10 +611,7 @@ const MainView = () => {
             {showFolderList ? (
               <FolderList
                 folders={folders}
-                onFolderSelect={(id) => {
-                  viewDispatch({ type: "folderSelect", folderId: id });
-                  if (isPhone) history.pushState({ folderId: id }, "");
-                }}
+                onFolderSelect={handleFolderSelect}
                 onAddFolder={() => dialogDispatch({ type: "openCreateFolder" })}
                 onRenameFolder={(folder) =>
                   dialogDispatch({ type: "openRenameFolder", folder })
