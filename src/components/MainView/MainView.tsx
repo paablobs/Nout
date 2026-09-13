@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Chip,
-  Drawer,
   Grid,
   IconButton,
   Menu,
@@ -10,7 +9,6 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import MenuIcon from "@mui/icons-material/Menu";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import PersonIcon from "@mui/icons-material/Person";
 
@@ -130,9 +128,7 @@ const resolveEffectiveSelectedNoteId = (
 
 const MainView = () => {
   const theme = useTheme();
-  const isBelowDesktop = useMediaQuery(theme.breakpoints.down("md"));
   const isPhone = useMediaQuery(theme.breakpoints.down("sm"));
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const { state: viewState, dispatch: viewDispatch } = useViewState();
   const { state: dialogState, dispatch: dialogDispatch } = useDialogs();
@@ -225,8 +221,6 @@ const MainView = () => {
         (note) => note.folderId === folderToDelete.id && !note.isTrash,
       ).length
     : 0;
-
-  const isTablet = isBelowDesktop && !isPhone;
 
   const showEditorOnPhone =
     isPhone &&
@@ -446,8 +440,6 @@ const MainView = () => {
     void signOut();
   };
 
-  const closeMobileMenu = () => setMobileMenuOpen(false);
-
   const handleViewChange = (view: SelectedView) => {
     const shouldClearFolder =
       isPhone &&
@@ -461,7 +453,6 @@ const MainView = () => {
         viewDispatch({ type: "clearFolderSelection" });
         viewDispatch({ type: "noteSelect", noteId: null });
         setSearchQuery("");
-        closeMobileMenu();
         history.back();
         return;
       }
@@ -484,7 +475,6 @@ const MainView = () => {
       }
     }
     setSearchQuery("");
-    closeMobileMenu();
   };
 
   const handleFolderBack = () => {
@@ -505,7 +495,6 @@ const MainView = () => {
       );
     }
     setSearchQuery("");
-    closeMobileMenu();
   };
 
   const handleRenameFolder = (folderName: string) => {
@@ -517,18 +506,6 @@ const MainView = () => {
 
   return (
     <div className="mainView">
-      {isTablet && (
-        <div className="mainView__mobileToolbar">
-          <IconButton
-            aria-label="Open navigation menu"
-            aria-controls="mobile-navigation"
-            aria-expanded={mobileMenuOpen}
-            onClick={() => setMobileMenuOpen(true)}
-          >
-            <MenuIcon />
-          </IconButton>
-        </div>
-      )}
       {isPhone && !showEditorOnPhone && (
         <div className="mainView__phoneToolbar" data-testid="phone-top-bar">
           {showFolderBack && (
@@ -581,51 +558,13 @@ const MainView = () => {
           </Menu>
         </div>
       )}
-      {isTablet && (
-        <Drawer
-          id="mobile-navigation"
-          anchor="left"
-          open={mobileMenuOpen}
-          onClose={closeMobileMenu}
-          slotProps={{ paper: { sx: { width: 300 } } }}
-        >
-          <Sidebar
-            currentView={currentView}
-            selectedFolderId={validSelectedFolderId}
-            folders={folders}
-            loading={loading || sessionLoading || scratchpad.loading}
-            cloudEnabled={firebaseEnabled}
-            cloudConnected={Boolean(user)}
-            signedInEmail={user?.email ?? null}
-            offline={Boolean(user) && offline}
-            onCloudSignIn={signIn}
-            onCloudSignOut={() => dialogDispatch({ type: "openSignOut" })}
-            onViewChange={handleViewChange}
-            onFolderSelect={handleFolderSelect}
-            onAddFolder={() => {
-              dialogDispatch({ type: "openCreateFolder" });
-              closeMobileMenu();
-            }}
-            onDeleteFolder={(folder) =>
-              dialogDispatch({ type: "openDeleteFolder", folder })
-            }
-            onRenameFolder={(folder) =>
-              dialogDispatch({ type: "openRenameFolder", folder })
-            }
-            onNewNote={() => {
-              handleNewNote();
-              closeMobileMenu();
-            }}
-          />
-        </Drawer>
-      )}
       <Grid
         container
         spacing={0}
         sx={{ gap: 3 }}
         className="mainView__gridContainer"
       >
-        {!isBelowDesktop && (
+        {!isPhone && (
           <Grid sx={{ width: 300 }}>
             <div className="mainView__leftPanel">
               <Sidebar

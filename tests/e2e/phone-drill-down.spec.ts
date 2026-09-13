@@ -267,12 +267,8 @@ test("phone editor has AppBar with title and delete icon", async ({
   await expect(page.locator('[aria-label="Delete note"]')).toBeVisible();
 });
 
-test("hamburger menu is hidden on phone", async ({ page, isMobile }) => {
-  if (!isMobile) {
-    test.skip();
-  }
-
-  await expect(
-    page.locator('[aria-label="Open navigation menu"]'),
-  ).not.toBeVisible();
+test("hamburger menu does not exist", async ({ page }) => {
+  await expect(page.locator('[aria-label="Open navigation menu"]')).toHaveCount(
+    0,
+  );
 });
