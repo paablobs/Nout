@@ -1,7 +1,5 @@
 import { createTheme, type Theme } from "@mui/material";
 
-// Breakpoint thresholds — single source for all responsive logic.
-// Phone < 768px, Tablet 768–1023px, Desktop >= 1024px.
 export const BREAKPOINT_PHONE = 768;
 export const BREAKPOINT_TABLET = 1024;
 

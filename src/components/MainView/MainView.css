@@ -48,7 +48,6 @@
   overflow: auto;
 }
 
-/* Tablet and below (< 1024px): show hamburger toolbar */
 @media (max-width: 1023px) {
   .mainView__mobileToolbar {
     display: flex;
@@ -59,7 +58,6 @@
   }
 }
 
-/* Phone (< 768px): show phone top bar, hide hamburger */
 @media (max-width: 767px) {
   .mainView__mobileToolbar {
     display: none;

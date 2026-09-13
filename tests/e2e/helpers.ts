@@ -79,7 +79,6 @@ export function makeFolder(overrides: Partial<SeedFolder> = {}): SeedFolder {
   };
 }
 
-/** Navigate to a sidebar nav item, handling mobile bottom nav */
 export async function navigateToView(page: Page, view: string) {
   const sidebarBtn = page.locator(testId(`nav-${view}`));
   const bottomNavBtn = page.locator(

@@ -25,8 +25,6 @@ export default defineConfig({
       name: "ipad",
       use: {
         ...devices["iPad (gen 7)"],
-        // Tablet is not phone. Keep the iPad viewport (810x1080) but
-        // disable isMobile so phone-only tests skip on tablet.
         isMobile: false,
       },
     },
