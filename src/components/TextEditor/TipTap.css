@@ -101,3 +101,14 @@
 .hljs-strong {
   font-weight: 700;
 }
+
+.editor__keyboard-spacer {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .editor__keyboard-spacer {
+    display: block;
+    height: 200px;
+  }
+}

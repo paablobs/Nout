@@ -1,13 +1,26 @@
 .mainView {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
 }
 
 .mainView__mobileToolbar {
   display: none;
 }
 
+.mainView__phoneToolbar {
+  display: none;
+  flex-shrink: 0;
+}
+
 .mainView__gridContainer {
-  height: 100dvh;
+  flex: 1;
+  min-height: 0;
   display: flex;
+  overflow: hidden;
+  margin: 0;
+  width: 100%;
+  max-width: 100%;
 }
 
 .mainView__leftPanel {
@@ -17,6 +30,7 @@
 .mainView__middlePanel {
   height: 100%;
   flex: 1 1 auto;
+  min-width: 0;
   scrollbar-color: rgba(255, 255, 255, 0.315) transparent;
   overflow: auto;
   display: flex;
@@ -24,19 +38,35 @@
   scrollbar-gutter: stable;
 }
 
-.mainView__rightPanel > div {
-  height: 100%;
+.mainView__rightPanel {
+  min-height: 0;
+  overflow: hidden;
 }
 
-@media (max-width: 1024px) {
+.mainView__rightPanel > div {
+  height: 100%;
+  overflow: auto;
+}
+
+@media (max-width: 1023px) {
   .mainView__mobileToolbar {
     display: flex;
     align-items: center;
     min-height: 48px;
     padding: 0 8px;
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .mainView__mobileToolbar {
+    display: none;
   }
 
-  .mainView__gridContainer {
-    height: calc(100dvh - 48px);
+  .mainView__phoneToolbar {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 12px;
   }
 }

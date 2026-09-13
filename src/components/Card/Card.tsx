@@ -21,45 +21,32 @@ import { alpha } from "@mui/material";
 import { DEFAULT_CATEGORY } from "../../utils/constants";
 import { getPreviewText } from "../../utils/notePreview";
 import { formatRelativeTime } from "../../utils/formatRelativeTime";
+import CompactCard from "./CompactCard";
+import type { CustomCardProps } from "./Card.types";
 import "./Card.css";
 
-interface CustomCardProps {
-  id: string;
-  text: string;
-  isFav?: boolean;
-  isTrash?: boolean;
-  isHidden?: boolean;
-  updatedAt: number;
-  trashedAt?: number;
-  onFav?: (id: string) => void;
-  onTrash?: (id: string) => void;
-  onRestore?: (id: string) => void;
-  onHide?: (id: string) => void;
-  folders?: { id: string; name: string; color?: string }[];
-  onMoveToFolder?: (noteId: string, folderId: string) => void;
-  folderId?: string | null;
-  onSelect?: (id: string) => void;
-  selected?: boolean;
-}
+const CustomCard = (props: CustomCardProps) => {
+  if (props.compact) return <CompactCard {...props} />;
 
-const CustomCard = ({
-  id,
-  text,
-  isFav,
-  isTrash,
-  isHidden,
-  updatedAt,
-  trashedAt,
-  onFav,
-  onTrash,
-  onRestore,
-  onHide,
-  folders,
-  onMoveToFolder,
-  folderId,
-  onSelect,
-  selected,
-}: CustomCardProps) => {
+  const {
+    id,
+    text,
+    isFav,
+    isTrash,
+    isHidden,
+    updatedAt,
+    trashedAt,
+    onFav,
+    onTrash,
+    onRestore,
+    onHide,
+    folders,
+    onMoveToFolder,
+    folderId,
+    onSelect,
+    selected,
+  } = props;
+
   const moveToFolderPopup = () => (
     <PopupState variant="popover" popupId={`move-folder-popup-${id}`}>
       {(popupState) => {
@@ -99,6 +86,17 @@ const CustomCard = ({
     </PopupState>
   );
 
+  const folderLabel =
+    folders?.find((folder) => folder.id === folderId)?.name ?? DEFAULT_CATEGORY;
+  const editedLabel = formatRelativeTime(updatedAt);
+  const metaLine = isTrash
+    ? trashedAt
+      ? `Trashed ${formatRelativeTime(trashedAt)}`
+      : "Trashed"
+    : editedLabel
+      ? `${folderLabel} · edited ${editedLabel}`
+      : folderLabel;
+
   const hideFromAllNotesPopup = () => (
     <PopupState variant="popover" popupId={`hide-from-notes-${id}`}>
       {(popupState) => {
@@ -132,23 +130,25 @@ const CustomCard = ({
     </PopupState>
   );
 
-  const folderLabel =
-    folders?.find((folder) => folder.id === folderId)?.name ?? DEFAULT_CATEGORY;
-  const editedLabel = formatRelativeTime(updatedAt);
-  const metaLine = isTrash
-    ? trashedAt
-      ? `Trashed ${formatRelativeTime(trashedAt)}`
-      : "Trashed"
-    : editedLabel
-      ? `${folderLabel} · edited ${editedLabel}`
-      : folderLabel;
-
   return (
     <Box className="box" data-testid={`note-card-${id}`}>
       <Card
         className="box__card"
         variant="outlined"
-        onClick={onSelect ? () => onSelect(id) : undefined}
+        onClick={
+          onSelect
+            ? (e) => {
+                const target = e.target as HTMLElement;
+                if (
+                  target.closest(
+                    "[role='menuitem'], [role='menu'], .MuiBackdrop-root",
+                  )
+                )
+                  return;
+                onSelect(id);
+              }
+            : undefined
+        }
         data-active={selected ? "true" : undefined}
         sx={
           selected

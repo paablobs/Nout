@@ -224,15 +224,26 @@ const Sidebar = ({
                     currentView === selectedView.FOLDERS &&
                     selectedFolderId === folder.id
                   }
+                  sx={{ paddingRight: 11, minWidth: 0 }}
                   onClick={() => {
                     onViewChange(selectedView.FOLDERS);
                     onFolderSelect(folder.id);
                   }}
                 >
-                  <ListItemIcon>
+                  <ListItemIcon sx={{ minWidth: 40 }}>
                     <FolderIcon sx={{ color: folder.color ?? yellow[500] }} />
                   </ListItemIcon>
-                  <ListItemText primary={folder.name} />
+                  <ListItemText
+                    primary={folder.name}
+                    primaryTypographyProps={{
+                      noWrap: true,
+                      sx: {
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      },
+                    }}
+                    sx={{ minWidth: 0 }}
+                  />
                 </ListItemButton>
               </ListItem>
             ))

@@ -4,6 +4,7 @@ import {
   clearLocalStorage,
   makeNote,
   seedLocalStorage,
+  clickNav,
 } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
@@ -30,7 +31,7 @@ test("favorites view shows only favorited notes", async ({ page }) => {
   });
   await page.goto("/");
 
-  await page.locator(testId("nav-favorites")).click();
+  await clickNav(page, "favorites");
 
   await expect(page.locator(testId(`note-card-${favNoteId}`))).toBeVisible();
   await expect(
@@ -47,7 +48,7 @@ test("unfavoriting a note removes it from favorites view", async ({ page }) => {
   });
   await page.goto("/");
 
-  await page.locator(testId("nav-favorites")).click();
+  await clickNav(page, "favorites");
   await expect(page.locator(testId(`note-card-${noteId}`))).toBeVisible();
 
   await page.locator(testId(`fav-btn-${noteId}`)).click();

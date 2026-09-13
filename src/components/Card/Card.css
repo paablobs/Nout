@@ -3,6 +3,17 @@
   height: 142px;
 }
 
+.box--compact {
+  max-height: 72px;
+  height: 72px;
+}
+
+.box__card--compact {
+  display: flex;
+  align-items: center;
+  padding: 0 4px 0 12px;
+}
+
 .box__card {
   height: 100%;
   cursor: pointer;

@@ -9,16 +9,23 @@ import {
 
 interface EmptyTrashDialogProps {
   isOpen: boolean;
+  fullScreen?: boolean;
   onEmptyTrash: () => void;
   onClose: () => void;
 }
 
 const EmptyTrashDialog = ({
   isOpen,
+  fullScreen,
   onEmptyTrash,
   onClose,
 }: EmptyTrashDialogProps) => (
-  <Dialog data-testid="empty-trash-dialog" open={isOpen} onClose={onClose}>
+  <Dialog
+    data-testid="empty-trash-dialog"
+    open={isOpen}
+    onClose={onClose}
+    fullScreen={fullScreen}
+  >
     <DialogTitle>Empty Trash</DialogTitle>
     <DialogContent>
       <DialogContentText>

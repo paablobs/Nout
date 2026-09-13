@@ -11,6 +11,7 @@ import { useState } from "react";
 
 interface RenameFolderDialogProps {
   isOpen: boolean;
+  fullScreen?: boolean;
   initialName: string;
   onRename: (folderName: string) => void;
   onClose: () => void;
@@ -18,6 +19,7 @@ interface RenameFolderDialogProps {
 
 const RenameFolderDialog = ({
   isOpen,
+  fullScreen,
   initialName,
   onRename,
   onClose,
@@ -39,6 +41,7 @@ const RenameFolderDialog = ({
       data-testid="rename-folder-dialog"
       open={isOpen}
       onClose={handleClose}
+      fullScreen={fullScreen}
     >
       <form onSubmit={handleSubmit}>
         <DialogTitle>Rename Folder</DialogTitle>

@@ -19,6 +19,7 @@ interface MiddlePanelProps {
   selectedNoteId: string | null;
   searchQuery: string;
   signedOut: boolean;
+  compact?: boolean;
   onFavNote: (noteId: string) => void;
   onTrashNote: (noteId: string) => void;
   onMoveNoteToFolder: (noteId: string, folderId: string | null) => void;
@@ -49,6 +50,7 @@ const FolderView = ({
   selectedNoteId,
   searchQuery,
   signedOut,
+  compact,
   onFavNote,
   onTrashNote,
   onMoveNoteToFolder,
@@ -154,6 +156,7 @@ const FolderView = ({
           folderId={card.folderId}
           onSelect={onCardSelect ? () => onCardSelect(card.id) : undefined}
           selected={selectedNoteId === card.id}
+          compact={compact}
         />
       ))}
     </>
