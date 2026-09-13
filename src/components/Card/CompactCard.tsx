@@ -60,9 +60,9 @@ const CompactCard = ({
       : folderLabel;
 
   return (
-    <Box className="box" data-testid={`note-card-${id}`}>
+    <Box className="box box--compact" data-testid={`note-card-${id}`}>
       <Card
-        className="box__card"
+        className="box__card box__card--compact"
         variant="outlined"
         onClick={
           onSelect
@@ -83,7 +83,7 @@ const CompactCard = ({
             : {}
         }
       >
-        <CardContent sx={{ pb: "4px !important" }}>
+        <CardContent sx={{ flex: 1, minWidth: 0, padding: 0 }}>
           <Typography
             variant="subtitle1"
             component="div"
@@ -96,7 +96,10 @@ const CompactCard = ({
             {metaLine}
           </Typography>
         </CardContent>
-        <CardActions sx={{ pt: 0, minHeight: 0 }}>
+        <CardActions
+          disableSpacing
+          sx={{ flexShrink: 0, minHeight: 0, padding: 0 }}
+        >
           {!isTrash && (
             <>
               <IconButton
@@ -121,7 +124,6 @@ const CompactCard = ({
                   <StarredIcon />
                 )}
               </IconButton>
-              <Box sx={{ flex: 1 }} />
               {hasMenuItems && (
                 <>
                   <IconButton

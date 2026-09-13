@@ -108,6 +108,29 @@ test("new note FAB is hidden in trash view on phone", async ({
   await expect(page.locator(testId("fab-new-note"))).not.toBeVisible();
 });
 
+test("compact note cards fit the 72px target height on phone", async ({
+  page,
+  isMobile,
+}) => {
+  if (!isMobile) {
+    test.skip();
+  }
+
+  const noteId = crypto.randomUUID();
+  await seedLocalStorage(page, {
+    notes: {
+      [noteId]: makeNote({ id: noteId, text: "Compact height check" }),
+    },
+  });
+  await page.goto("/");
+
+  const card = page.locator(testId(`note-card-${noteId}`));
+  await expect(card).toBeVisible();
+  const box = await card.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.height).toBeLessThanOrEqual(72);
+});
+
 test("folder drill-down has a back button returning to the folder list", async ({
   page,
   isMobile,
