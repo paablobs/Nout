@@ -602,7 +602,7 @@ const MainView = () => {
             className="mainView__middlePanel"
             gap={1}
             padding={1}
-            paddingX={0}
+            paddingX={isPhone ? 1 : 0}
           >
             {showFolderList ? (
               <FolderList
