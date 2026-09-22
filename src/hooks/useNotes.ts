@@ -12,9 +12,11 @@ import { createCloudNotesRepository } from "../repositories/cloud/CloudNotesRepo
 import { createCloudFoldersRepository } from "../repositories/cloud/CloudFoldersRepository";
 import { createLocalNotesRepository } from "../repositories/local/LocalNotesRepository";
 import { createLocalFoldersRepository } from "../repositories/local/LocalFoldersRepository";
+import { FIRESTORE_BATCH_LIMIT } from "../repositories/cloud/firestoreBatch";
 import { normalizeNote, backfillTrashedAt } from "../utils/noteSchema";
 import { planMigration } from "../utils/noteMigration";
 import { selectPurgeIds } from "../utils/noteLifecycle";
+import { NoteMutationQueue } from "../utils/noteMutationQueue";
 import {
   createNote,
   planFolderDeletion,
@@ -44,8 +46,41 @@ const useNotes = () => {
   const [cloudFolders, setCloudFolders] = useState<Folder[]>([]);
   const [cloudLoading, setCloudLoading] = useState(false);
 
-  const noteSaveTimersRef = useRef<Record<string, number>>({});
-  const pendingNoteSavesRef = useRef<Record<string, Note>>({});
+  const repos = useMemo(() => {
+    if (user && db) {
+      return {
+        cloud: true as const,
+        notes: createCloudNotesRepository(db, user.uid),
+        folders: createCloudFoldersRepository(db, user.uid),
+      };
+    }
+    return {
+      cloud: false as const,
+      notes: createLocalNotesRepository(),
+      folders: createLocalFoldersRepository(),
+    };
+  }, [user]);
+
+  const noteQueue = useMemo(
+    () =>
+      new NoteMutationQueue((note) => repos.notes.upsert(note), {
+        debounceMs: repos.cloud ? NOTE_SAVE_DEBOUNCE_MS : 0,
+        retainLatestUntilObserved: repos.cloud,
+        onError: (error) => {
+          console.error("Failed to save note", error);
+          reportError("Could not save the note");
+        },
+      }),
+    [repos, reportError],
+  );
+  const noteQueueRef = useRef(noteQueue);
+  noteQueueRef.current = noteQueue;
+
+  useEffect(() => {
+    return () => {
+      void noteQueue.flushAndWait();
+    };
+  }, [noteQueue]);
 
   useEffect(() => {
     const run = async () => {
@@ -83,23 +118,6 @@ const useNotes = () => {
     const userId = user.uid;
     const notesRepo = createCloudNotesRepository(cloudDb, userId);
     const foldersRepo = createCloudFoldersRepository(cloudDb, userId);
-
-    const flushPendingNoteSaves = () => {
-      const pending = pendingNoteSavesRef.current;
-      pendingNoteSavesRef.current = {};
-      const notes = Object.values(pending);
-      if (notes.length === 0) return;
-      void notesRepo.upsertBatch(notes).catch((error) => {
-        console.error("Failed to flush pending note saves", error);
-        reportError("Could not save your latest changes to the cloud");
-      });
-    };
-
-    Object.values(noteSaveTimersRef.current).forEach((timer) => {
-      window.clearTimeout(timer);
-    });
-    noteSaveTimersRef.current = {};
-    flushPendingNoteSaves();
 
     const session = {
       serverNotes: false,
@@ -161,6 +179,7 @@ const useNotes = () => {
         });
         latestCloudNotes = record;
         setCloudNotes(record);
+        noteQueue.observe(record);
         setCloudLoading(false);
         if (!snapshot.metadata.fromCache && !session.serverNotes) {
           session.serverNotes = true;
@@ -207,64 +226,22 @@ const useNotes = () => {
     return () => {
       unsubNotes();
       unsubFolders();
-      Object.values(noteSaveTimersRef.current).forEach((timer) => {
-        window.clearTimeout(timer);
-      });
-      noteSaveTimersRef.current = {};
-      flushPendingNoteSaves();
     };
-  }, [user, reportError]);
+  }, [noteQueue, reportError, user]);
 
   const notes = user ? cloudNotes : localNotes;
   const folders = user ? cloudFolders : localFolders;
 
-  const repos = useMemo(() => {
-    if (user && db) {
-      return {
-        cloud: true as const,
-        notes: createCloudNotesRepository(db, user.uid),
-        folders: createCloudFoldersRepository(db, user.uid),
-      };
-    }
-    return {
-      cloud: false as const,
-      notes: createLocalNotesRepository(),
-      folders: createLocalFoldersRepository(),
-    };
-  }, [user]);
-
   const persistNote = (note: Note) => {
-    void repos.notes.upsert(note).catch((error) => {
-      console.error("Failed to save note", error);
-      reportError("Could not save the note");
-    });
+    noteQueueRef.current.enqueue(note);
   };
 
   const persistNotes = (notesToUpdate: Note[]) => {
-    if (notesToUpdate.length === 0) return;
-    void repos.notes.upsertBatch(notesToUpdate).catch((error) => {
-      console.error("Failed to save notes", error);
-      reportError("Could not save the notes");
-    });
+    notesToUpdate.forEach((note) => noteQueueRef.current.enqueue(note));
   };
 
   const scheduleNoteSave = (note: Note) => {
-    if (!repos.cloud) {
-      persistNote(note);
-      return;
-    }
-    pendingNoteSavesRef.current[note.id] = note;
-    const existingTimer = noteSaveTimersRef.current[note.id];
-    if (existingTimer !== undefined) {
-      window.clearTimeout(existingTimer);
-    }
-    noteSaveTimersRef.current[note.id] = window.setTimeout(() => {
-      delete noteSaveTimersRef.current[note.id];
-      const pending = pendingNoteSavesRef.current[note.id];
-      if (!pending) return;
-      delete pendingNoteSavesRef.current[note.id];
-      persistNote(pending);
-    }, NOTE_SAVE_DEBOUNCE_MS);
+    noteQueueRef.current.schedule(note);
   };
 
   const addNote = (currentView: string, selectedFolderId?: string) => {
@@ -305,27 +282,39 @@ const useNotes = () => {
   };
 
   const deleteFolder = (folderId: string) => {
-    const plan = planFolderDeletion(notes, folderId, Date.now());
-    void (async () => {
-      try {
-        await repos.folders.remove(folderId);
-        await repos.notes.upsertBatch(plan.trashedNotes);
-      } catch (error) {
+    const notesForMutation = {
+      ...notes,
+      ...noteQueueRef.current.getLatestNotes(),
+    };
+    const plan = planFolderDeletion(notesForMutation, folderId, Date.now());
+    noteQueueRef.current.enqueueAtomic(
+      plan.trashedNotes,
+      async () => {
+        await repos.folders.removeWithNotes(folderId, plan.trashedNotes);
+      },
+      (error) => {
         console.error("Failed to delete folder", error);
         reportError("Could not delete the folder");
-      }
-    })();
+      },
+      {
+        rollbackOnFailure:
+          !repos.cloud || plan.trashedNotes.length + 1 <= FIRESTORE_BATCH_LIMIT,
+      },
+    );
   };
 
+  const getNoteForMutation = (id: string) =>
+    noteQueueRef.current.getLatest(id) ?? notes[id];
+
   const addFavorite = (id: string) => {
-    const note = notes[id];
+    const note = getNoteForMutation(id);
     if (note) {
       persistNote(withToggledFavorite(note));
     }
   };
 
   const moveNoteToFolder = (noteId: string, folderId: string | null) => {
-    const note = notes[noteId];
+    const note = getNoteForMutation(noteId);
     if (note) {
       persistNote(withFolderMoved(note, folderId));
     }
@@ -334,22 +323,28 @@ const useNotes = () => {
   const deleteNotes = (ids: string[], permanent = false) => {
     if (ids.length === 0) return;
     if (permanent) {
-      void repos.notes.removeBatch(ids).catch((error) => {
-        console.error("Failed to permanently delete notes", error);
-        reportError("Could not delete the notes");
-      });
+      noteQueueRef.current.enqueueOperation(
+        ids,
+        async () => {
+          await repos.notes.removeBatch(ids);
+        },
+        (error) => {
+          console.error("Failed to permanently delete notes", error);
+          reportError("Could not delete the notes");
+        },
+      );
       return;
     }
     const now = Date.now();
     const trashedNotes = ids
-      .map((id) => notes[id])
+      .map((id) => getNoteForMutation(id))
       .filter((note): note is Note => Boolean(note))
       .map((note) => withTrashed(note, now));
     persistNotes(trashedNotes);
   };
 
   const restoreNote = (id: string) => {
-    const note = notes[id];
+    const note = getNoteForMutation(id);
     if (note && note.isTrash) {
       persistNote(withRestored(note));
     }
@@ -360,14 +355,14 @@ const useNotes = () => {
   };
 
   const updateNoteText = (id: string, text: string) => {
-    const note = notes[id];
+    const note = getNoteForMutation(id);
     if (note) {
       scheduleNoteSave(withUpdatedText(note, text, Date.now()));
     }
   };
 
   const hideNote = (id: string) => {
-    const note = notes[id];
+    const note = getNoteForMutation(id);
     if (note) {
       persistNote(withToggledHidden(note));
     }

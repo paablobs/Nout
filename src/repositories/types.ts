@@ -29,4 +29,5 @@ export interface FoldersRepository {
   upsert(folder: Folder): Promise<void>;
   upsertBatch(folders: Folder[]): Promise<void>;
   remove(folderId: string): Promise<void>;
+  removeWithNotes(folderId: string, notes: Note[]): Promise<void>;
 }

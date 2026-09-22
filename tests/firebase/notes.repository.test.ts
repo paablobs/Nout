@@ -201,6 +201,62 @@ describe("Cloud repositories against the emulator", () => {
     expect(remaining).toEqual([{ id: "f2", name: "No color" }]);
   });
 
+  it("deletes a folder and updates its notes in one repository operation", async () => {
+    const folder = { id: "f1", name: "Work" };
+    const inside = makeNote({ id: "inside", folderId: folder.id });
+    await foldersRepo().upsert(folder);
+    await notesRepo().upsert(inside);
+
+    await foldersRepo().removeWithNotes(folder.id, [
+      makeNote({
+        ...inside,
+        folderId: undefined,
+        isTrash: true,
+        trashedAt: 3000,
+      }),
+    ]);
+
+    expect(await foldersRepo().getAll()).toEqual([]);
+    expect((await notesRepo().getAll()).inside).toEqual(
+      expect.objectContaining({
+        isTrash: true,
+        trashedAt: 3000,
+      }),
+    );
+  });
+
+  it("handles the 500-note folder boundary with ordered batches", async () => {
+    const folder = { id: "large-folder", name: "Large" };
+    const notes = Array.from({ length: 500 }, (_, index) =>
+      makeNote({ id: `large-${index}`, folderId: folder.id }),
+    );
+    const trashedNotes = notes.map((note) => ({
+      ...note,
+      folderId: undefined,
+      isTrash: true,
+      trashedAt: 3000,
+    }));
+    await foldersRepo().upsert(folder);
+    await notesRepo().upsertBatch(notes);
+
+    await expect(
+      foldersRepo().removeWithNotes(folder.id, [
+        { ...trashedNotes[0], text: "x".repeat(50001) },
+        ...trashedNotes.slice(1),
+      ]),
+    ).rejects.toThrow();
+    expect(await foldersRepo().getAll()).toEqual([folder]);
+    expect((await notesRepo().getAll())["large-0"]?.folderId).toBe(folder.id);
+
+    await foldersRepo().removeWithNotes(folder.id, trashedNotes);
+
+    expect(await foldersRepo().getAll()).toEqual([]);
+    const remaining = await notesRepo().getAll();
+    expect(Object.keys(remaining)).toHaveLength(500);
+    expect(Object.values(remaining).every((note) => note.isTrash)).toBe(true);
+    expect(Object.values(remaining).every((note) => !note.folderId)).toBe(true);
+  });
+
   it("reads what the raw SDK can verify", async () => {
     await notesRepo().upsert(makeNote());
     const snapshot = await getDocs(

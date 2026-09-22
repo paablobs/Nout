@@ -3,7 +3,8 @@ import {
   getLocalStorageItem,
   setLocalStorageItem,
 } from "../../utils/localStorageHelper";
-import type { Folder, FoldersRepository } from "../types";
+import type { Folder, FoldersRepository, Note } from "../types";
+import { createLocalNotesRepository } from "./LocalNotesRepository";
 
 const isFolder = (value: unknown): value is Folder =>
   typeof value === "object" &&
@@ -52,6 +53,11 @@ export function createLocalFoldersRepository(): FoldersRepository {
         storageKeys.FOLDERS,
         current.filter((folder) => folder.id !== folderId),
       );
+    },
+
+    async removeWithNotes(folderId: string, notes: Note[]) {
+      await this.remove(folderId);
+      await createLocalNotesRepository().upsertBatch(notes);
     },
   };
 }

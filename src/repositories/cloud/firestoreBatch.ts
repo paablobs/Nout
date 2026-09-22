@@ -1,6 +1,6 @@
 import { writeBatch, type Firestore } from "firebase/firestore";
 
-const FIRESTORE_BATCH_LIMIT = 500;
+export const FIRESTORE_BATCH_LIMIT = 500;
 
 export type BatchOperation = (batch: ReturnType<typeof writeBatch>) => void;
 
@@ -19,4 +19,18 @@ export const commitInBatches = async (
       .forEach((operation) => operation(batch));
     await batch.commit();
   }
+};
+
+export const commitAtomically = async (
+  cloudDb: Firestore,
+  operations: BatchOperation[],
+) => {
+  if (operations.length > FIRESTORE_BATCH_LIMIT) {
+    throw new Error(
+      "Firestore atomic batch cannot contain more than 500 writes",
+    );
+  }
+  const batch = writeBatch(cloudDb);
+  operations.forEach((operation) => operation(batch));
+  await batch.commit();
 };

@@ -39,7 +39,7 @@ const sanitizeNoteForDoc = (note: Note): Note => {
   return sanitized;
 };
 
-const noteToDoc = (note: Note): Record<string, unknown> => {
+export const noteToDoc = (note: Note): Record<string, unknown> => {
   const clean = sanitizeNoteForDoc(note);
   const data: Record<string, unknown> = {
     id: clean.id,
