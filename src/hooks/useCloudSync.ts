@@ -4,6 +4,10 @@ import { useLocalStorage } from "./useLocalStorage";
 import { useSession } from "../contexts/SessionContext";
 import { useReportError } from "../contexts/ErrorContext";
 import { db } from "../config/firebase";
+import {
+  shouldApplyCloudSnapshot,
+  shouldRestoreCloudValue,
+} from "../utils/cloudSync";
 
 const SYNC_SAVE_DEBOUNCE_MS = 400;
 
@@ -34,6 +38,11 @@ export function useCloudSync<T>({
   const seededRef = useRef(false);
   const saveTimerRef = useRef<number | null>(null);
   const pendingValueRef = useRef<T | null>(null);
+  const inFlightSaveRef = useRef<{ id: number; value: T } | null>(null);
+  const saveIdRef = useRef(0);
+  const confirmedSaveIdRef = useRef(0);
+  const syncEpochRef = useRef(0);
+  const confirmedValueRef = useRef(defaultValue);
   const localValueRef = useRef(localValue);
   localValueRef.current = localValue;
   const configRef = useRef({
@@ -45,10 +54,14 @@ export function useCloudSync<T>({
   configRef.current = { firestorePath, serialize, deserialize, defaultValue };
 
   useEffect(() => {
+    syncEpochRef.current += 1;
     const { firestorePath, serialize, deserialize, defaultValue } =
       configRef.current;
 
     seededRef.current = false;
+    inFlightSaveRef.current = null;
+    confirmedSaveIdRef.current = 0;
+    confirmedValueRef.current = defaultValue;
     setCloudValue(defaultValue);
 
     if (!user || !db) {
@@ -80,13 +93,30 @@ export function useCloudSync<T>({
 
     const unsubscribe = onSnapshot(
       ref,
+      { includeMetadataChanges: true },
       (snapshot) => {
         if (cancelled) return;
+
+        if (
+          !shouldApplyCloudSnapshot(
+            {
+              exists: snapshot.exists(),
+              fromCache: snapshot.metadata.fromCache,
+            },
+            pendingValueRef.current !== null ||
+              inFlightSaveRef.current !== null,
+          )
+        ) {
+          return;
+        }
+
         setCloudLoading(false);
         if (snapshot.exists()) {
-          setCloudValue(
-            deserialize((snapshot.data() as { value?: unknown }).value),
+          const remoteValue = deserialize(
+            (snapshot.data() as { value?: unknown }).value,
           );
+          confirmedValueRef.current = remoteValue;
+          setCloudValue(remoteValue);
         } else if (!seededRef.current) {
           seededRef.current = true;
           void setDoc(
@@ -110,8 +140,10 @@ export function useCloudSync<T>({
     );
 
     return () => {
+      syncEpochRef.current += 1;
       cancelled = true;
       unsubscribe();
+      inFlightSaveRef.current = null;
       flushPendingSave();
     };
   }, [user, reportError]);
@@ -124,6 +156,7 @@ export function useCloudSync<T>({
     const { firestorePath, serialize } = configRef.current;
     const { db: cloudDb, docPath } = firestorePath(user.uid);
     const ref = doc(cloudDb, docPath);
+    const syncEpoch = syncEpochRef.current;
     pendingValueRef.current = next;
     if (saveTimerRef.current !== null) {
       window.clearTimeout(saveTimerRef.current);
@@ -133,12 +166,38 @@ export function useCloudSync<T>({
       const pending = pendingValueRef.current;
       if (pending === null) return;
       pendingValueRef.current = null;
-      void setDoc(ref, { value: serialize(pending) }, { merge: true }).catch(
-        (error) => {
+      const inFlightSave = { id: ++saveIdRef.current, value: pending };
+      inFlightSaveRef.current = inFlightSave;
+      setCloudValue(pending);
+      void setDoc(ref, { value: serialize(pending) }, { merge: true })
+        .then(() => {
+          if (
+            syncEpochRef.current === syncEpoch &&
+            inFlightSave.id > confirmedSaveIdRef.current
+          ) {
+            confirmedSaveIdRef.current = inFlightSave.id;
+            confirmedValueRef.current = pending;
+          }
+        })
+        .catch((error) => {
+          if (
+            syncEpochRef.current === syncEpoch &&
+            shouldRestoreCloudValue(
+              inFlightSaveRef.current?.id ?? null,
+              inFlightSave.id,
+              pendingValueRef.current !== null,
+            )
+          ) {
+            setCloudValue(confirmedValueRef.current);
+          }
           console.error("Failed to update cloud data", error);
           reportError("Could not save to the cloud");
-        },
-      );
+        })
+        .finally(() => {
+          if (inFlightSaveRef.current === inFlightSave) {
+            inFlightSaveRef.current = null;
+          }
+        });
     }, SYNC_SAVE_DEBOUNCE_MS);
   };
 

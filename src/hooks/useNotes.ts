@@ -6,6 +6,10 @@ import { db } from "../config/firebase";
 import { useLocalStorage } from "./useLocalStorage";
 import { selectedView } from "../utils/selectedView";
 import { storageKeys } from "../utils/storageKeys";
+import {
+  getLocalStorageItem,
+  setLocalStorageItem,
+} from "../utils/localStorageHelper";
 import randomColor from "../utils/randomColor";
 import type { Note, Folder } from "../repositories/types";
 import { createCloudNotesRepository } from "../repositories/cloud/CloudNotesRepository";
@@ -14,7 +18,12 @@ import { createLocalNotesRepository } from "../repositories/local/LocalNotesRepo
 import { createLocalFoldersRepository } from "../repositories/local/LocalFoldersRepository";
 import { FIRESTORE_BATCH_LIMIT } from "../repositories/cloud/firestoreBatch";
 import { normalizeNote, backfillTrashedAt } from "../utils/noteSchema";
-import { planMigration } from "../utils/noteMigration";
+import {
+  getAccountMigrationLedger,
+  parseMigrationLedger,
+  recordMigrationLedger,
+} from "../utils/localMigrationLedger";
+import { excludeNoteIds, planMigration } from "../utils/noteMigration";
 import { selectPurgeIds } from "../utils/noteLifecycle";
 import { NoteMutationQueue } from "../utils/noteMutationQueue";
 import {
@@ -29,6 +38,9 @@ import {
 } from "../utils/noteTransforms";
 
 const NOTE_SAVE_DEBOUNCE_MS = 400;
+const MIGRATION_RETRY_MS = 1000;
+const folderMutationKey = (accountId: string, folderId: string) =>
+  `${accountId}\0${folderId}`;
 
 export type { Note, Folder };
 
@@ -75,6 +87,54 @@ const useNotes = () => {
   );
   const noteQueueRef = useRef(noteQueue);
   noteQueueRef.current = noteQueue;
+  const permanentDeleteIdsRef = useRef(new Map<string, Set<string>>());
+  const migrationSessionsRef = useRef(new Map<string, object>());
+  const folderOperationRef = useRef(Promise.resolve());
+  const folderMutationVersionsRef = useRef(new Map<string, number>());
+  const folderMutationSuccessVersionsRef = useRef(new Map<string, number>());
+
+  const markFolderMutation = (folderId: string) => {
+    const key = folderMutationKey(user?.uid ?? "local", folderId);
+    const current = folderMutationVersionsRef.current.get(key) ?? 0;
+    const next = current + 1;
+    folderMutationVersionsRef.current.set(key, next);
+    return { key, version: next };
+  };
+
+  const enqueueFolderMutation = (
+    folderId: string,
+    operation: () => Promise<void>,
+  ) => {
+    const { key, version } = markFolderMutation(folderId);
+    return enqueueFolderOperation(async () => {
+      await operation();
+      folderMutationSuccessVersionsRef.current.set(key, version);
+    });
+  };
+
+  const enqueueFolderOperation = (operation: () => Promise<void>) => {
+    const previous = folderOperationRef.current;
+    const next = previous.then(operation, operation);
+    folderOperationRef.current = next.then(
+      () => undefined,
+      () => undefined,
+    );
+    return next;
+  };
+
+  const clearSafePermanentDeleteIds = async (
+    accountKey: string,
+    ids: Set<string>,
+  ) => {
+    if (ids.size === 0) return;
+    const localNotes = await createLocalNotesRepository().getAll();
+    ids.forEach((id) => {
+      if (!localNotes[id]) ids.delete(id);
+    });
+    if (ids.size === 0) {
+      permanentDeleteIdsRef.current.delete(accountKey);
+    }
+  };
 
   useEffect(() => {
     return () => {
@@ -116,63 +176,217 @@ const useNotes = () => {
 
     const cloudDb = db;
     const userId = user.uid;
+    const permanentDeleteIds =
+      permanentDeleteIdsRef.current.get(userId) ?? new Set<string>();
+    permanentDeleteIdsRef.current.set(userId, permanentDeleteIds);
     const notesRepo = createCloudNotesRepository(cloudDb, userId);
     const foldersRepo = createCloudFoldersRepository(cloudDb, userId);
 
     const session = {
+      receivedNotes: false,
+      receivedFolders: false,
       serverNotes: false,
       serverFolders: false,
       migrated: false,
       purged: false,
+      migrationPromise: null as Promise<void> | null,
+      migrationRetryTimer: null as ReturnType<typeof setTimeout> | null,
+      migrationErrorReported: false,
+      cancelled: false,
     };
+    migrationSessionsRef.current.set(userId, session);
     let latestCloudNotes: Record<string, Note> = {};
     let latestCloudFolders: Folder[] = [];
 
+    const finishLoading = () => {
+      if (
+        !session.cancelled &&
+        session.receivedNotes &&
+        session.receivedFolders
+      ) {
+        setCloudLoading(false);
+      }
+    };
+
+    const scheduleMigrationRetry = () => {
+      if (session.cancelled || session.migrationRetryTimer !== null) return;
+      session.migrationRetryTimer = setTimeout(() => {
+        session.migrationRetryTimer = null;
+        maybeRunMigrationAndPurge();
+      }, MIGRATION_RETRY_MS);
+    };
+
     const runMigrationAndPurge = async () => {
       if (!session.migrated) {
-        session.migrated = true;
         try {
+          const folderSuccessBaseline = new Map(
+            folderMutationSuccessVersionsRef.current,
+          );
+          // Finish edits that were queued while the initial cloud snapshots
+          // arrived before calculating the migration plan.
+          await noteQueue.flushAndWait();
+          if (session.cancelled) return;
+
           const [localNotesData, localFoldersData] = await Promise.all([
             createLocalNotesRepository().getAll(),
             createLocalFoldersRepository().getAll(),
           ]);
+          const migrationLedger = getAccountMigrationLedger(
+            parseMigrationLedger(
+              getLocalStorageItem(storageKeys.MIGRATION_LEDGER),
+            ),
+            userId,
+          );
           const plan = planMigration({
             localNotes: localNotesData,
             localFolders: localFoldersData,
             cloudNotes: latestCloudNotes,
             cloudFolders: latestCloudFolders,
             now: Date.now(),
+            migrationLedger,
           });
+
+          // An edit can arrive while localStorage is being read. Flush again
+          // before starting migration writes.
+          await noteQueue.flushAndWait();
+          if (session.cancelled) return;
+
           if (plan.foldersToWrite.length > 0) {
-            await foldersRepo.upsertBatch(plan.foldersToWrite);
+            await enqueueFolderOperation(async () => {
+              const foldersToWrite = plan.foldersToWrite.filter((folder) => {
+                const key = folderMutationKey(userId, folder.id);
+                const plannedVersion = folderSuccessBaseline.get(key) ?? 0;
+                const mutationSucceededDuringMigration =
+                  (folderMutationSuccessVersionsRef.current.get(key) ?? 0) >
+                  plannedVersion;
+                return !mutationSucceededDuringMigration;
+              });
+              if (foldersToWrite.length > 0) {
+                await foldersRepo.upsertBatch(foldersToWrite);
+              }
+            });
           }
-          if (plan.notesToWrite.length > 0) {
-            await notesRepo.upsertBatch(plan.notesToWrite);
+
+          // Read the queue after folder writes too: folder batches can be
+          // large enough for a note edit to arrive while they commit.
+          await noteQueue.flushAndWait();
+          if (session.cancelled) return;
+          const latestQueuedNotes = noteQueue.getLatestNotes();
+          const notesToWrite = excludeNoteIds(
+            plan.notesToWrite,
+            permanentDeleteIds,
+          ).map((note) => latestQueuedNotes[note.id] ?? note);
+          if (notesToWrite.length > 0) {
+            await notesRepo.upsertBatch(notesToWrite);
+
+            // A permanent delete can race with the migration batch. Delete
+            // any planned IDs marked during that batch after it commits.
+            const migratedNoteIds = new Set(
+              notesToWrite.map((note) => note.id),
+            );
+            const racedDeleteIds = [...permanentDeleteIds].filter((id) =>
+              migratedNoteIds.has(id),
+            );
+            if (racedDeleteIds.length > 0) {
+              await notesRepo.removeBatch(racedDeleteIds);
+            }
           }
+
+          if (session.cancelled) return;
+          const localNotesForLedger = { ...localNotesData };
+          Object.keys(localNotesForLedger).forEach((id) => {
+            const latest = latestQueuedNotes[id];
+            if (latest) localNotesForLedger[id] = latest;
+          });
+          const updatedLedger = recordMigrationLedger(
+            parseMigrationLedger(
+              getLocalStorageItem(storageKeys.MIGRATION_LEDGER),
+            ),
+            userId,
+            localNotesForLedger,
+            localFoldersData,
+          );
+          setLocalStorageItem(storageKeys.MIGRATION_LEDGER, updatedLedger);
+          // Mark this only after every migration batch has committed. A
+          // partial failure must be eligible for a later retry.
+          session.migrated = true;
         } catch (error) {
           console.error("Failed to migrate local data to cloud", error);
-          reportError("Could not copy your local notes to the cloud");
+          if (!session.cancelled) {
+            if (!session.migrationErrorReported) {
+              session.migrationErrorReported = true;
+              reportError("Could not copy your local notes to the cloud");
+            }
+            scheduleMigrationRetry();
+            finishLoading();
+          }
+          return;
         }
       }
 
+      if (session.cancelled) return;
+
       if (!session.purged) {
-        session.purged = true;
-        const purgeIds = selectPurgeIds(latestCloudNotes, Date.now());
-        if (purgeIds.length > 0) {
-          try {
+        try {
+          const purgeIds = selectPurgeIds(latestCloudNotes, Date.now());
+          if (purgeIds.length > 0) {
             await notesRepo.removeBatch(purgeIds);
-          } catch (error) {
-            console.error("Failed to purge old trash", error);
           }
+          if (session.cancelled) return;
+          session.purged = true;
+        } catch (error) {
+          console.error("Failed to purge old trash", error);
+          scheduleMigrationRetry();
         }
       }
+
+      finishLoading();
+    };
+
+    const maybeRunMigrationAndPurge = () => {
+      if (
+        session.cancelled ||
+        !session.serverNotes ||
+        !session.serverFolders ||
+        session.migrationPromise
+      ) {
+        return;
+      }
+      if (session.migrated && session.purged) {
+        finishLoading();
+        return;
+      }
+      const promise = runMigrationAndPurge();
+      session.migrationPromise = promise;
+      void promise.then(
+        () => {
+          if (session.migrationPromise === promise) {
+            session.migrationPromise = null;
+          }
+          if (migrationSessionsRef.current.get(userId) === session) {
+            migrationSessionsRef.current.delete(userId);
+            void clearSafePermanentDeleteIds(userId, permanentDeleteIds);
+          }
+        },
+        () => {
+          if (session.migrationPromise === promise) {
+            session.migrationPromise = null;
+          }
+          if (migrationSessionsRef.current.get(userId) === session) {
+            migrationSessionsRef.current.delete(userId);
+            void clearSafePermanentDeleteIds(userId, permanentDeleteIds);
+          }
+        },
+      );
     };
 
     setCloudLoading(true);
 
     const unsubNotes = onSnapshot(
       collection(cloudDb, "users", userId, "notes"),
+      { includeMetadataChanges: true },
       (snapshot) => {
+        if (session.cancelled) return;
         const record: Record<string, Note> = {};
         snapshot.docs.forEach((item) => {
           record[item.id] = normalizeNote(item.data());
@@ -180,15 +394,15 @@ const useNotes = () => {
         latestCloudNotes = record;
         setCloudNotes(record);
         noteQueue.observe(record);
-        setCloudLoading(false);
-        if (!snapshot.metadata.fromCache && !session.serverNotes) {
+        session.receivedNotes = true;
+        finishLoading();
+        if (!snapshot.metadata.fromCache) {
           session.serverNotes = true;
-          if (session.serverFolders) {
-            void runMigrationAndPurge();
-          }
+          maybeRunMigrationAndPurge();
         }
       },
       (error) => {
+        if (session.cancelled) return;
         console.error("Failed to listen to cloud notes", error);
         setCloudLoading(false);
         reportError("Lost connection to your cloud notes");
@@ -197,7 +411,9 @@ const useNotes = () => {
 
     const unsubFolders = onSnapshot(
       collection(cloudDb, "users", userId, "folders"),
+      { includeMetadataChanges: true },
       (snapshot) => {
+        if (session.cancelled) return;
         const folders = snapshot.docs.map((item) => {
           const data = item.data() as Partial<Folder>;
           return {
@@ -208,15 +424,15 @@ const useNotes = () => {
         });
         latestCloudFolders = folders;
         setCloudFolders(folders);
-        setCloudLoading(false);
-        if (!snapshot.metadata.fromCache && !session.serverFolders) {
+        session.receivedFolders = true;
+        finishLoading();
+        if (!snapshot.metadata.fromCache) {
           session.serverFolders = true;
-          if (session.serverNotes) {
-            void runMigrationAndPurge();
-          }
+          maybeRunMigrationAndPurge();
         }
       },
       (error) => {
+        if (session.cancelled) return;
         console.error("Failed to listen to cloud folders", error);
         setCloudLoading(false);
         reportError("Lost connection to your cloud folders");
@@ -224,6 +440,16 @@ const useNotes = () => {
     );
 
     return () => {
+      session.cancelled = true;
+      if (migrationSessionsRef.current.get(userId) === session) {
+        if (!session.migrationPromise) {
+          migrationSessionsRef.current.delete(userId);
+          void clearSafePermanentDeleteIds(userId, permanentDeleteIds);
+        }
+      }
+      if (session.migrationRetryTimer !== null) {
+        clearTimeout(session.migrationRetryTimer);
+      }
       unsubNotes();
       unsubFolders();
     };
@@ -265,7 +491,9 @@ const useNotes = () => {
       name,
       color: randomColor(),
     };
-    void repos.folders.upsert(folder).catch((error) => {
+    void enqueueFolderMutation(folder.id, () =>
+      repos.folders.upsert(folder),
+    ).catch((error) => {
       console.error("Failed to create folder", error);
       reportError("Could not create the folder");
     });
@@ -275,7 +503,9 @@ const useNotes = () => {
     const name = folderName.trim();
     const folder = folders.find((item) => item.id === folderId);
     if (!folder || !name) return;
-    void repos.folders.upsert({ ...folder, name }).catch((error) => {
+    void enqueueFolderMutation(folderId, () =>
+      repos.folders.upsert({ ...folder, name }),
+    ).catch((error) => {
       console.error("Failed to rename folder", error);
       reportError("Could not rename the folder");
     });
@@ -290,7 +520,9 @@ const useNotes = () => {
     noteQueueRef.current.enqueueAtomic(
       plan.trashedNotes,
       async () => {
-        await repos.folders.removeWithNotes(folderId, plan.trashedNotes);
+        await enqueueFolderMutation(folderId, () =>
+          repos.folders.removeWithNotes(folderId, plan.trashedNotes),
+        );
       },
       (error) => {
         console.error("Failed to delete folder", error);
@@ -323,13 +555,32 @@ const useNotes = () => {
   const deleteNotes = (ids: string[], permanent = false) => {
     if (ids.length === 0) return;
     if (permanent) {
+      const accountKey = user?.uid ?? "local";
+      const permanentDeleteIds =
+        permanentDeleteIdsRef.current.get(accountKey) ?? new Set<string>();
+      permanentDeleteIdsRef.current.set(accountKey, permanentDeleteIds);
+      ids.forEach((id) => permanentDeleteIds.add(id));
+      let cloudDeleteSucceeded = false;
       noteQueueRef.current.enqueueOperation(
         ids,
         async () => {
           await repos.notes.removeBatch(ids);
+          cloudDeleteSucceeded = true;
+          if (repos.cloud) {
+            await createLocalNotesRepository().removeBatch(ids);
+          }
+          if (!migrationSessionsRef.current.has(accountKey)) {
+            ids.forEach((id) => permanentDeleteIds.delete(id));
+          }
         },
         (error) => {
           console.error("Failed to permanently delete notes", error);
+          if (!cloudDeleteSucceeded) {
+            ids.forEach((id) => permanentDeleteIds.delete(id));
+            if (permanentDeleteIds.size === 0) {
+              permanentDeleteIdsRef.current.delete(accountKey);
+            }
+          }
           reportError("Could not delete the notes");
         },
       );

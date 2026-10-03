@@ -7,7 +7,7 @@ import type { Note, NotesRepository } from "../types";
 import { normalizeNote } from "../../utils/noteSchema";
 
 export function createLocalNotesRepository(): NotesRepository {
-  const readAll = async (): Promise<Record<string, Note>> => {
+  const readAll = (): Record<string, Note> => {
     const raw = getLocalStorageItem(storageKeys.NOTES);
     if (!raw) return {};
     try {
@@ -31,13 +31,13 @@ export function createLocalNotesRepository(): NotesRepository {
     },
 
     async upsert(note) {
-      const current = await readAll();
+      const current = readAll();
       setLocalStorageItem(storageKeys.NOTES, { ...current, [note.id]: note });
     },
 
     async upsertBatch(notes) {
       if (notes.length === 0) return;
-      const current = await readAll();
+      const current = readAll();
       const updated = { ...current };
       for (const note of notes) {
         updated[note.id] = note;
@@ -46,14 +46,14 @@ export function createLocalNotesRepository(): NotesRepository {
     },
 
     async remove(noteId) {
-      const current = await readAll();
+      const current = readAll();
       const { [noteId]: _removed, ...rest } = current;
       setLocalStorageItem(storageKeys.NOTES, rest);
     },
 
     async removeBatch(noteIds) {
       if (noteIds.length === 0) return;
-      const current = await readAll();
+      const current = readAll();
       const updated = { ...current };
       for (const id of noteIds) {
         delete updated[id];

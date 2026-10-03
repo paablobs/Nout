@@ -13,7 +13,7 @@ const isFolder = (value: unknown): value is Folder =>
   typeof (value as Folder).name === "string";
 
 export function createLocalFoldersRepository(): FoldersRepository {
-  const readAll = async (): Promise<Folder[]> => {
+  const readAll = (): Folder[] => {
     const raw = getLocalStorageItem(storageKeys.FOLDERS);
     if (!raw) return [];
     try {
@@ -30,7 +30,7 @@ export function createLocalFoldersRepository(): FoldersRepository {
     },
 
     async upsert(folder) {
-      const current = await readAll();
+      const current = readAll();
       setLocalStorageItem(storageKeys.FOLDERS, [
         folder,
         ...current.filter((item) => item.id !== folder.id),
@@ -39,7 +39,7 @@ export function createLocalFoldersRepository(): FoldersRepository {
 
     async upsertBatch(folders) {
       if (folders.length === 0) return;
-      const current = await readAll();
+      const current = readAll();
       const writtenIds = new Set(folders.map((folder) => folder.id));
       setLocalStorageItem(storageKeys.FOLDERS, [
         ...folders,
@@ -48,7 +48,7 @@ export function createLocalFoldersRepository(): FoldersRepository {
     },
 
     async remove(folderId) {
-      const current = await readAll();
+      const current = readAll();
       setLocalStorageItem(
         storageKeys.FOLDERS,
         current.filter((folder) => folder.id !== folderId),
