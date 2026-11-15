@@ -8,7 +8,10 @@ allowBuilds:
 overrides:
   # Firestore 4.19.0 (including Firebase 13) still pins vulnerable gRPC ~1.9.0.
   "@firebase/firestore>@grpc/grpc-js": "^1.14.6"
-  # firebase-tools 15.34.2 requires Pub/Sub 5, which still uses vulnerable core 1.x.
+  # firebase-tools 15.36.0 requires Pub/Sub 5, which still uses vulnerable core 1.x.
   "@opentelemetry/core": "^2.8.0"
   # Its gaxios 6 / google-auth-library 9 dependencies still require vulnerable uuid 9.
   "gaxios>uuid": "^11.1.1"
+  # firebase-tools 15.36.0 (latest), exegesis 4.3.0 and archiver-utils 5.0.2 still pin vulnerable
+  # glob 10.x (fixed only in >=14.0.2, which also pulls the patched minimatch 11).
+  "glob@<14": "14.0.3"
