@@ -31,10 +31,15 @@ export const createNoutTheme = (accent: string = DEFAULT_ACCENT): Theme => {
       background: {
         default: BACKGROUND_COLOR,
       },
-      // With the default accent, primary is left unset so MUI's own dark
-      // primary applies and the look is unchanged.
+      // With the default accent, primary and info are left unset so MUI's own
+      // dark palette applies and the look is unchanged.
+      // The Google sign-in button is the only "info" element and should
+      // follow a custom accent, so info mirrors primary then.
       ...(accentPalette && {
         primary: base.palette.augmentColor({
+          color: { main: accentPalette.primary },
+        }),
+        info: base.palette.augmentColor({
           color: { main: accentPalette.primary },
         }),
       }),

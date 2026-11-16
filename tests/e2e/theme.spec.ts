@@ -73,3 +73,22 @@ test("an invalid stored accent falls back to the default", async ({ page }) => {
     DEFAULT_ACTION_RGB,
   );
 });
+
+test("the Google sign-in button keeps its color by default and follows the accent", async ({
+  page,
+}) => {
+  const signIn = page.locator(testId("cloud-auth-btn"));
+  // The sidebar footer (and this button) only exists on desktop.
+  test.skip(isPhone(page), "sidebar is desktop-only");
+
+  await page.reload();
+  await expect(signIn).toBeEnabled();
+  await expect(signIn).toHaveCSS("color", "rgb(41, 182, 246)");
+
+  await page.evaluate(() => {
+    localStorage.setItem("themeAccent", JSON.stringify("#ff8800"));
+  });
+  await page.reload();
+  await expect(signIn).toBeEnabled();
+  await expect(signIn).toHaveCSS("color", "rgb(255, 136, 0)");
+});
