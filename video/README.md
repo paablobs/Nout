@@ -26,6 +26,11 @@ pnpm record                # re-record the app (needs the dev server above)
 pnpm studio                # optional: preview in Remotion Studio
 pnpm render                # writes out/nout-demo.mp4
 cp out/nout-demo.mp4 ../docs/nout-demo.mp4
+
+# README GIF (plays inline on GitHub). Remotion's bundled ffmpeg has no fps filter, so use -r.
+pnpm exec remotion ffmpeg -y -i out/nout-demo.mp4 -r 10 \\
+  -vf "scale=960:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=96:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" \\
+  -loop 0 ../docs/nout-demo.gif
 ```
 
 Keep the result under 10 MB if you upload it through the GitHub web editor. Edit the seed data and
