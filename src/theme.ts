@@ -1,4 +1,10 @@
 import { createTheme, type Theme } from "@mui/material";
+import {
+  BACKGROUND_COLOR,
+  DEFAULT_ACCENT,
+  DEFAULT_SECONDARY,
+  derivePalette,
+} from "./utils/accentTheme";
 
 export const BREAKPOINT_PHONE = 768;
 export const BREAKPOINT_TABLET = 1024;
@@ -6,8 +12,9 @@ export const BREAKPOINT_TABLET = 1024;
 // The theme is built in two passes on purpose: augmentColor() only exists on a
 // Theme instance, so a throwaway base theme is created first to borrow its
 // palette helpers for the secondary and error colors.
-const createNoutTheme = (): Theme => {
+export const createNoutTheme = (accent: string = DEFAULT_ACCENT): Theme => {
   const base = createTheme();
+  const accentPalette = derivePalette(accent);
 
   return createTheme({
     breakpoints: {
@@ -22,11 +29,18 @@ const createNoutTheme = (): Theme => {
     palette: {
       mode: "dark",
       background: {
-        default: "#0a0908",
+        default: BACKGROUND_COLOR,
       },
+      // With the default accent, primary is left unset so MUI's own dark
+      // primary applies and the look is unchanged.
+      ...(accentPalette && {
+        primary: base.palette.augmentColor({
+          color: { main: accentPalette.primary },
+        }),
+      }),
       secondary: base.palette.augmentColor({
         color: {
-          main: "#2e442e",
+          main: accentPalette?.secondary ?? DEFAULT_SECONDARY,
         },
       }),
       error: base.palette.augmentColor({
@@ -70,5 +84,3 @@ const createNoutTheme = (): Theme => {
     },
   });
 };
-
-export const noutTheme = createNoutTheme();

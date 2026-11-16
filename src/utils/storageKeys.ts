@@ -3,4 +3,5 @@ export const storageKeys = {
   FOLDERS: "folders",
   MIGRATION_LEDGER: "migrationLedger",
   SCRATCHPAD: "scratchpad",
+  THEME_ACCENT: "themeAccent",
 };
