@@ -5,13 +5,13 @@ import { createNoutTheme } from "./theme";
 import { useThemeAccent } from "./hooks/useThemeAccent";
 
 function App() {
-  const [accent] = useThemeAccent();
+  const [accent, setAccent] = useThemeAccent();
   const theme = useMemo(() => createNoutTheme(accent), [accent]);
 
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <MainView />
+      <MainView accent={accent} onAccentChange={setAccent} />
     </ThemeProvider>
   );
 }

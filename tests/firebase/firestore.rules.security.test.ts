@@ -755,6 +755,82 @@ describe("Firestore aggressive security tests", () => {
     });
   });
 
+  describe("theme accent", () => {
+    const themeDoc = (db: ReturnType<typeof aliceDb>) =>
+      db.doc("users/alice/meta/theme");
+
+    it("allows a lowercase #rrggbb accent", async () => {
+      await assertSucceeds(themeDoc(aliceDb()).set({ value: "#ff8800" }));
+    });
+
+    it("allows the default accent as an empty string", async () => {
+      await assertSucceeds(themeDoc(aliceDb()).set({ value: "" }));
+    });
+
+    it("allows the merge write the client uses", async () => {
+      await assertSucceeds(
+        themeDoc(aliceDb()).set({ value: "#ba68c8" }, { merge: true }),
+      );
+    });
+
+    it("owner can read and delete own theme", async () => {
+      await assertSucceeds(themeDoc(aliceDb()).set({ value: "#ff8800" }));
+      await assertSucceeds(themeDoc(aliceDb()).get());
+      await assertSucceeds(themeDoc(aliceDb()).delete());
+    });
+
+    it.each([
+      ["uppercase hex", "#FF8800"],
+      ["3-digit hex", "#f80"],
+      ["hex without #", "ff8800"],
+      ["8-digit hex", "#ff8800ff"],
+      ["non-hex digits", "#gggggg"],
+      ["a color name", "red"],
+      ["a css function", "rgb(255,136,0)"],
+      ["a script-like string", "javascript:alert(1)"],
+      ["a hex with trailing text", "#ff8800 extra"],
+      ["a hex with a leading newline", "\n#ff8800"],
+    ])("rejects %s", async (_label, value) => {
+      await assertFails(themeDoc(aliceDb()).set({ value }));
+    });
+
+    it("rejects extra fields", async () => {
+      await assertFails(
+        themeDoc(aliceDb()).set({ value: "#ff8800", extra: "bad" }),
+      );
+    });
+
+    it("rejects a missing value field", async () => {
+      await assertFails(themeDoc(aliceDb()).set({ accent: "#ff8800" }));
+    });
+
+    it("rejects non-string values", async () => {
+      await assertFails(themeDoc(aliceDb()).set({ value: 255 }));
+      await assertFails(themeDoc(aliceDb()).set({ value: true }));
+      await assertFails(themeDoc(aliceDb()).set({ value: null }));
+    });
+
+    it("rejects an update that adds an extra field", async () => {
+      await assertSucceeds(themeDoc(aliceDb()).set({ value: "#ff8800" }));
+      await assertFails(themeDoc(aliceDb()).update({ extra: "bad" }));
+    });
+
+    it("anon cannot read, write or delete a theme", async () => {
+      await assertFails(
+        anonDb().doc("users/alice/meta/theme").set({ value: "#ff8800" }),
+      );
+      await assertFails(anonDb().doc("users/alice/meta/theme").get());
+      await assertFails(anonDb().doc("users/alice/meta/theme").delete());
+    });
+
+    it("bob cannot read, write or delete alice's theme", async () => {
+      await assertSucceeds(themeDoc(aliceDb()).set({ value: "#ff8800" }));
+      await assertFails(themeDoc(bobDb()).get());
+      await assertFails(themeDoc(bobDb()).set({ value: "#000000" }));
+      await assertFails(themeDoc(bobDb()).delete());
+    });
+  });
+
   // ═══════════════════════════════════════════════════════════════════════════
   // 8. UPDATE-SPECIFIC ATTACKS (partial update / field injection)
   // ═══════════════════════════════════════════════════════════════════════════
