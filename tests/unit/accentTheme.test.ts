@@ -95,6 +95,7 @@ describe("createNoutTheme", () => {
     const theme = createNoutTheme();
     const muiDark = createTheme({ palette: { mode: "dark" } });
     expect(theme.palette.primary).toEqual(muiDark.palette.primary);
+    expect(theme.palette.info).toEqual(muiDark.palette.info);
     expect(theme.palette.secondary.main).toBe(DEFAULT_SECONDARY);
   });
 
@@ -102,6 +103,10 @@ describe("createNoutTheme", () => {
     const theme = createNoutTheme("#ff8800");
     expect(theme.palette.primary.main).toBe("#ff8800");
     expect(theme.palette.secondary.main).not.toBe(DEFAULT_SECONDARY);
+  });
+
+  it("makes info follow a custom accent", () => {
+    expect(createNoutTheme("#ff8800").palette.info.main).toBe("#ff8800");
   });
 
   it("leaves semantic colors untouched", () => {
