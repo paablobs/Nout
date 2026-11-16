@@ -1,0 +1,22 @@
+{
+  "name": "nout-demo-video",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "studio": "remotion studio",
+    "record": "node capture/record.mjs",
+    "render": "remotion render src/index.ts NoutDemo out/nout-demo.mp4 --codec=h264 --muted --crf=20 --pixel-format=yuv420p"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.530",
+    "@remotion/google-fonts": "4.0.530",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "remotion": "4.0.530"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "typescript": "~5.8.3"
+  }
+}

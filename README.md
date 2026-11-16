@@ -1,6 +1,8 @@
 # Nout — Offline-first Rich Text Notes
 
-<img width="2720" height="1532" alt="paablobs github io_Nout_" src="https://github.com/user-attachments/assets/0b748ba3-b2f2-41d5-a440-52382d0272f1" />
+<video src="https://github.com/paablobs/Nout/raw/master/docs/nout-demo.mp4" controls muted loop playsinline width="100%">
+  <a href="docs/nout-demo.mp4">Watch the Nout demo video</a>
+</video>
 
 Nout is a compact, offline-first note-taking web app built with React, TypeScript and Vite. It combines a lightweight local-first data layer with a polished UI and a rich-text editor (TipTap) so you can create, organize and edit notes with no backend required.
 

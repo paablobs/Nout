@@ -31,3 +31,9 @@ storybook-static
 # Test artifacts
 playwright-report/
 test-results/
+
+# Remotion demo video (video/)
+video/out/
+video/.tmp-video/
+video/public/*.webm
+video/public/markers.json
