@@ -30,6 +30,7 @@ import DeleteFolderDialog from "./DeleteFolderDialog/DeleteFolderDialog";
 import EmptyTrashDialog from "./EmptyTrashDialog/EmptyTrashDialog";
 import RenameFolderDialog from "./RenameFolderDialog/RenameFolderDialog";
 import SignOutDialog from "./SignOutDialog/SignOutDialog";
+import SettingsDialog from "./SettingsDialog/SettingsDialog";
 import SearchNotesField from "./SearchNotesField/SearchNotesField";
 import Sidebar from "./Sidebar/Sidebar";
 import FolderView from "./FolderView/FolderView";
@@ -40,6 +41,7 @@ import FabNewNote from "./FabNewNote/FabNewNote";
 import { useScratchpad } from "./hooks/useScratchpad";
 import { useViewState, type ViewState } from "./hooks/useViewState";
 import { useDialogs } from "./hooks/useDialogs";
+import { useThemeAccent } from "../../hooks/useThemeAccent";
 import { useOfflineStatus } from "./hooks/useOfflineStatus";
 
 import "./MainView.css";
@@ -141,7 +143,9 @@ const MainView = () => {
     openRenameFolder,
     folderToRename,
     openSignOut,
+    openSettings,
   } = dialogState;
+  const [accent, setAccent] = useThemeAccent();
 
   const {
     user,
@@ -544,6 +548,15 @@ const MainView = () => {
               </MenuItem>
             )}
             <MenuItem
+              data-testid="account-settings"
+              onClick={() => {
+                setAccountAnchor(null);
+                dialogDispatch({ type: "openSettings" });
+              }}
+            >
+              Settings
+            </MenuItem>
+            <MenuItem
               onClick={() => {
                 setAccountAnchor(null);
                 if (user) {
@@ -578,6 +591,7 @@ const MainView = () => {
                 offline={Boolean(user) && offline}
                 onCloudSignIn={signIn}
                 onCloudSignOut={() => dialogDispatch({ type: "openSignOut" })}
+                onOpenSettings={() => dialogDispatch({ type: "openSettings" })}
                 onViewChange={handleViewChange}
                 onFolderSelect={handleFolderSelect}
                 onAddFolder={() => dialogDispatch({ type: "openCreateFolder" })}
@@ -712,6 +726,13 @@ const MainView = () => {
         fullScreen={isPhone}
         onConfirm={handleConfirmSignOut}
         onClose={() => dialogDispatch({ type: "closeSignOut" })}
+      />
+      <SettingsDialog
+        isOpen={openSettings}
+        fullScreen={isPhone}
+        accent={accent}
+        onAccentChange={setAccent}
+        onClose={() => dialogDispatch({ type: "closeSettings" })}
       />
     </div>
   );

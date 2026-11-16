@@ -25,6 +25,7 @@ import {
   EditOutlined as RenameFolderIcon,
   CodeOutlined as CodeIcon,
   WifiOffOutlined as WifiOffIcon,
+  SettingsOutlined as SettingsIcon,
 } from "@mui/icons-material";
 import { yellow } from "@mui/material/colors";
 
@@ -48,6 +49,7 @@ interface LeftPanelProps {
   offline: boolean;
   onCloudSignIn: () => Promise<void>;
   onCloudSignOut: () => void;
+  onOpenSettings: () => void;
   onViewChange: (view: SelectedView) => void;
   onFolderSelect: (folderId: string) => void;
   onAddFolder: () => void;
@@ -67,6 +69,7 @@ const Sidebar = ({
   offline,
   onCloudSignIn,
   onCloudSignOut,
+  onOpenSettings,
   onViewChange,
   onFolderSelect,
   onAddFolder,
@@ -275,6 +278,16 @@ const Sidebar = ({
             Notes are stored in this browser only.
           </Typography>
         )}
+        <Button
+          data-testid="settings-btn"
+          fullWidth
+          color="inherit"
+          startIcon={<SettingsIcon />}
+          onClick={onOpenSettings}
+          sx={{ marginBottom: 1 }}
+        >
+          Settings
+        </Button>
         <Button
           data-testid="cloud-auth-btn"
           fullWidth
