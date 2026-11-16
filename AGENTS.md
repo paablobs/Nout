@@ -321,9 +321,9 @@ This project uses **oxlint** and **oxfmt** (not ESLint/Prettier).
 
 ## 10.2. Testing discipline
 
-- Pure logic → `tests/unit/` (Vitest). Add cases alongside `noteTransforms`, `noteSchema`, `noteMigration`, `noteLifecycle`, `noteQuery`, `filteredNotes` tests.
-- Rules or repository behavior → `tests/firebase/` (emulator, Java 21+). Keep `firestore.rules`, `noteSchema.ts`, and cloud repositories consistent; the security test asserts exact allowed/denied shapes.
-- User flows → `tests/e2e/` (Playwright, offline-only seeded localStorage). Phone navigation changes require updates to `phone-drill-down.spec.ts`.
+- Pure logic → `tests/unit/` (Vitest). Add cases alongside `noteTransforms`, `noteSchema`, `noteMigration`, `noteLifecycle`, `noteQuery`, `filteredNotes`, `accentTheme` tests.
+- Rules or repository behavior → `tests/firebase/` (emulator, Java 21+). Keep `firestore.rules`, `noteSchema.ts`, `accentTheme.ts` (`serializeAccent`) and cloud repositories consistent; the security test asserts exact allowed/denied shapes, including the `meta/theme` doc.
+- User flows → `tests/e2e/` (Playwright, offline-only seeded localStorage). Phone navigation changes require updates to `phone-drill-down.spec.ts`; theme and Settings dialog flows live in `theme.spec.ts` (the signed-in sync path can't run offline, so it is covered by the rules tests).
 
 ---
 
