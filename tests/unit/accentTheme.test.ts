@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { createTheme, getContrastRatio } from "@mui/material/styles";
 import {
   ACCENT_PRESETS,
+  deserializeAccent,
+  serializeAccent,
   BACKGROUND_COLOR,
   DEFAULT_ACCENT,
   DEFAULT_SECONDARY,
@@ -127,5 +129,55 @@ describe("ACCENT_PRESETS", () => {
   it("have unique names", () => {
     const names = ACCENT_PRESETS.map((preset) => preset.name);
     expect(new Set(names).size).toBe(names.length);
+  });
+});
+
+describe("cloud (de)serialization", () => {
+  it("stores the default accent as an empty string", () => {
+    expect(serializeAccent(undefined)).toBe("");
+    expect(serializeAccent("")).toBe("");
+  });
+
+  it("stores a custom accent as lowercase #rrggbb", () => {
+    expect(serializeAccent("#FF8800")).toBe("#ff8800");
+    expect(serializeAccent("#f80")).toBe("#ff8800");
+  });
+
+  it("never serializes garbage", () => {
+    expect(serializeAccent("javascript:alert(1)")).toBe("");
+  });
+
+  it("reads an empty or invalid cloud value as the default (undefined)", () => {
+    expect(deserializeAccent("")).toBeUndefined();
+    expect(deserializeAccent("nope")).toBeUndefined();
+    expect(deserializeAccent(undefined)).toBeUndefined();
+    expect(deserializeAccent(42)).toBeUndefined();
+  });
+
+  it("reads a valid cloud accent back", () => {
+    expect(deserializeAccent("#ff8800")).toBe("#ff8800");
+  });
+
+  it("only ever produces what firestore.rules accepts", () => {
+    // Mirrors isValidTheme(): "" or a lowercase #rrggbb.
+    const ruleShape = /^(#[0-9a-f]{6})?$/;
+    for (const input of [
+      undefined,
+      "",
+      "#FF8800",
+      "#f80",
+      " #ff8800 ",
+      "red",
+      "#ff88",
+      "javascript:alert(1)",
+      "\n#ff8800",
+    ]) {
+      expect(serializeAccent(input)).toMatch(ruleShape);
+    }
+  });
+
+  it("round-trips", () => {
+    expect(deserializeAccent(serializeAccent("#ba68c8"))).toBe("#ba68c8");
+    expect(deserializeAccent(serializeAccent(undefined))).toBeUndefined();
   });
 });

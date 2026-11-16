@@ -48,14 +48,14 @@ This is not a style guide — it is a _mental architecture guide_.
 ## 0.1. Where things live (read this before touching code)
 
 - `src/repositories/` — the only persistence seam. `types.ts` defines `Note`, `Folder`, `NotesRepository`, `FoldersRepository`. `local/` implements them on localStorage, `cloud/` on Firestore (batched via `firestoreBatch.ts`). Components and hooks must go through these, never call Firestore directly (the only exceptions are `useNotes` and `useCloudSync`, which own the subscriptions).
-- `src/utils/` — pure functions, no React, no Firebase. `noteTransforms` (create/toggle/trash/restore/move), `filteredNotes` (per-view filtering, the single source of truth), `noteQuery` (search + sorting), `noteSchema` (normalize/sanitize/backfill), `noteMigration` (first-sign-in `planMigration`), `noteLifecycle` (30-day purge via `selectPurgeIds`), `notePreview` (HTML to list text), `selectedView` (view constants).
-- `src/hooks/` — external data subscriptions. `useNotes` owns notes + folders live-sync (localStorage when signed out, `onSnapshot` when signed in, debounced ~400ms cloud saves, migration + purge on connect) and exposes all note/folder actions. `useCloudSync` is the generic single-doc sync used by `useScratchpad`. `useLocalStorage` is the cross-tab localStorage bridge.
+- `src/utils/` — pure functions, no React, no Firebase. `noteTransforms` (create/toggle/trash/restore/move), `filteredNotes` (per-view filtering, the single source of truth), `noteQuery` (search + sorting), `noteSchema` (normalize/sanitize/backfill), `noteMigration` (first-sign-in `planMigration`), `noteLifecycle` (30-day purge via `selectPurgeIds`), `notePreview` (HTML to list text), `selectedView` (view constants), `accentTheme` (accent normalization, contrast-safe palette derivation, presets, cloud (de)serialization).
+- `src/hooks/` — external data subscriptions. `useNotes` owns notes + folders live-sync (localStorage when signed out, `onSnapshot` when signed in, debounced ~400ms cloud saves, migration + purge on connect) and exposes all note/folder actions. `useCloudSync` is the generic single-doc sync used by `useScratchpad` and `useThemeAccent`; it takes optional `onRemoteValue` (called from the snapshot handler when a remote value is applied, never during an unsettled local write) and `shouldSeed` (whether a missing cloud doc is created from the local value). `useThemeAccent` keeps the local key as what the UI reads (picks apply instantly, first paint never waits for the cloud) and uses `useCloudSync` only to sync it. `useLocalStorage` is the cross-tab localStorage bridge.
 - `src/contexts/` — `SessionContext` (`useSession`: auth state, Google sign-in with redirect fallback, sign-out), `ErrorContext` (`useReportError`: snackbar).
-- `src/components/MainView/` — the app shell. `MainView.tsx` composes `Sidebar`, `FolderView`, `FolderList`, `NoteEditorPanel`, `BottomNav`, `FabNewNote`, dialogs, `SearchNotesField`. Local UI state lives in `hooks/useViewState` (view/folder/note selection reducer), `hooks/useDialogs` (dialog reducer), `hooks/useOfflineStatus`.
+- `src/components/MainView/` — the app shell. `MainView.tsx` composes `Sidebar`, `FolderView`, `FolderList`, `NoteEditorPanel`, `BottomNav`, `FabNewNote`, dialogs, `SearchNotesField`. Local UI state lives in `hooks/useViewState` (view/folder/note selection reducer), `hooks/useDialogs` (dialog reducer), `hooks/useOfflineStatus`. `SettingsDialog` (accent picker) is presentational; `App` owns the single accent subscription and passes `accent`/`onAccentChange` to `MainView`.
 - `src/components/Card/` — `Card` (desktop list row) and `CompactCard` (phone single-row 72px layout), plus `Card.types.ts`.
 - `src/components/TextEditor/` — `TipTap.tsx` plus custom extensions.
-- `src/theme.ts` — breakpoints (`sm` 768 phone, `md` 1024 desktop), dark palette, JetBrains Mono.
-- `firestore.rules` — per-user `users/{uid}/...` namespace with strict note/folder/scratchpad schemas. Keep rules, `noteSchema.ts`, and the cloud repositories in agreement when the model changes.
+- `src/theme.ts` — breakpoints (`sm` 768 phone, `md` 1024 desktop), dark palette, JetBrains Mono. `createNoutTheme(accent)` builds the theme: the default accent leaves MUI's primary/info and the original secondary untouched; a custom accent sets `primary` and `info` (the contrast-clamped accent) and a dark `secondary` derived from it. `App` rebuilds it with `useMemo` when the accent changes. Do not switch to MUI `cssVariables` mode: `Card`/`CompactCard` use `alpha(theme.palette.primary.main, …)`.
+- `firestore.rules` — per-user `users/{uid}/...` namespace with strict note/folder/scratchpad/theme schemas (`meta/theme` is `{ value }`, `""` or a lowercase `#rrggbb`; keep it in agreement with `serializeAccent`). Keep rules, `noteSchema.ts`, and the cloud repositories in agreement when the model changes.
 
 ### Note model
 
@@ -192,11 +192,12 @@ The correct mindset is:
 
 > “I am connecting React to an external data source”
 
-Subscriptions are owned by exactly two places:
+Subscriptions are owned by exactly three places:
 
 ```ts
 useNotes(); // notes + folders live-sync and all note/folder actions
 useScratchpad(); // thin wrapper over generic useCloudSync for the scratchpad doc
+useThemeAccent(); // thin wrapper over generic useCloudSync for the accent doc (called once, in App)
 ```
 
 Plus `useSession()` for auth and `useReportError()` for failure display. Components **must not talk to Firestore directly** and **must not invent new subscriptions**. New persistence goes through `src/repositories/` and is exposed through `useNotes`/`useCloudSync`.
@@ -239,7 +240,7 @@ The agent must follow this order:
 
 1. Is this a derived calculation? → do it in render (`filteredNotes`, `noteQuery`)
 2. Does this happen due to user action? → event handler calling a `useNotes` action
-3. Does this come from Firebase? → it already arrives via `useNotes`/`useScratchpad`; do not add a fetch
+3. Does this come from Firebase? → it already arrives via `useNotes`/`useScratchpad`/`useThemeAccent`; do not add a fetch
 4. Is this real state or can it be derived?
 5. Am I adding state just to “store something”? → probably bad design
 6. Am I about to use `useEffect`? → re-read this file

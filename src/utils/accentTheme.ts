@@ -135,3 +135,15 @@ export function derivePalette(accent: string): AccentPalette | null {
     }),
   };
 }
+
+// Cloud representation: the default accent is stored as "" (the rules only
+// accept "" or a lowercase #rrggbb), and read back as undefined so it matches
+// the "nothing picked yet" local state.
+export function serializeAccent(accent: string | undefined): string {
+  return normalizeAccent(accent);
+}
+
+export function deserializeAccent(data: unknown): string | undefined {
+  const accent = normalizeAccent(data);
+  return accent === DEFAULT_ACCENT ? undefined : accent;
+}

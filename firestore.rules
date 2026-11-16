@@ -81,6 +81,14 @@ service cloud.firestore {
         && request.resource.data.value.size() <= 200000;
     }
 
+    function isValidTheme() {
+      return request.resource.data.keys().hasOnly(["value"])
+        && request.resource.data.keys().hasAll(["value"])
+        && request.resource.data.value is string
+        && (request.resource.data.value == ""
+            || request.resource.data.value.matches("^#[0-9a-f]{6}$"));
+    }
+
     match /users/{userId} {
       allow read, write: if false;
 
@@ -99,6 +107,12 @@ service cloud.firestore {
       match /meta/scratchpad {
         allow read: if isOwner(userId);
         allow create, update: if isOwner(userId) && isValidScratchpad();
+        allow delete: if isOwner(userId);
+      }
+
+      match /meta/theme {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidTheme();
         allow delete: if isOwner(userId);
       }
 

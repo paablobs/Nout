@@ -17,6 +17,13 @@ interface UseCloudSyncConfig<T> {
   defaultValue: T;
   serialize?: (value: T) => unknown;
   deserialize?: (data: unknown) => T;
+  // Called from the snapshot handler whenever a remote value is applied (never
+  // while a local write is unsettled), so callers can mirror it elsewhere
+  // without an effect.
+  onRemoteValue?: (value: T) => void;
+  // Decides whether a missing cloud doc should be created from the local value.
+  // Defaults to always, so existing callers are unchanged.
+  shouldSeed?: (localValue: T) => boolean;
 }
 
 export function useCloudSync<T>({
@@ -25,6 +32,8 @@ export function useCloudSync<T>({
   defaultValue,
   serialize = (v) => v,
   deserialize = (d) => d as T,
+  onRemoteValue,
+  shouldSeed,
 }: UseCloudSyncConfig<T>) {
   const { user } = useSession();
   const reportError = useReportError();
@@ -50,8 +59,17 @@ export function useCloudSync<T>({
     serialize,
     deserialize,
     defaultValue,
+    onRemoteValue,
+    shouldSeed,
   });
-  configRef.current = { firestorePath, serialize, deserialize, defaultValue };
+  configRef.current = {
+    firestorePath,
+    serialize,
+    deserialize,
+    defaultValue,
+    onRemoteValue,
+    shouldSeed,
+  };
 
   useEffect(() => {
     syncEpochRef.current += 1;
@@ -117,8 +135,11 @@ export function useCloudSync<T>({
           );
           confirmedValueRef.current = remoteValue;
           setCloudValue(remoteValue);
+          configRef.current.onRemoteValue?.(remoteValue);
         } else if (!seededRef.current) {
           seededRef.current = true;
+          const { shouldSeed } = configRef.current;
+          if (shouldSeed && !shouldSeed(localValueRef.current)) return;
           void setDoc(
             ref,
             { value: serialize(localValueRef.current) },

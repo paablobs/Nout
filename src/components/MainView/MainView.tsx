@@ -41,7 +41,6 @@ import FabNewNote from "./FabNewNote/FabNewNote";
 import { useScratchpad } from "./hooks/useScratchpad";
 import { useViewState, type ViewState } from "./hooks/useViewState";
 import { useDialogs } from "./hooks/useDialogs";
-import { useThemeAccent } from "../../hooks/useThemeAccent";
 import { useOfflineStatus } from "./hooks/useOfflineStatus";
 
 import "./MainView.css";
@@ -128,7 +127,12 @@ const resolveEffectiveSelectedNoteId = (
   return getFirstSelectableNoteId(notes, currentView, selectedFolderId);
 };
 
-const MainView = () => {
+interface MainViewProps {
+  accent: string;
+  onAccentChange: (accent: string) => void;
+}
+
+const MainView = ({ accent, onAccentChange }: MainViewProps) => {
   const theme = useTheme();
   const isPhone = useMediaQuery(theme.breakpoints.down("sm"));
   const [searchQuery, setSearchQuery] = useState("");
@@ -145,7 +149,6 @@ const MainView = () => {
     openSignOut,
     openSettings,
   } = dialogState;
-  const [accent, setAccent] = useThemeAccent();
 
   const {
     user,
@@ -731,7 +734,7 @@ const MainView = () => {
         isOpen={openSettings}
         fullScreen={isPhone}
         accent={accent}
-        onAccentChange={setAccent}
+        onAccentChange={onAccentChange}
         onClose={() => dialogDispatch({ type: "closeSettings" })}
       />
     </div>
