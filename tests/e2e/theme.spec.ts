@@ -73,3 +73,120 @@ test("an invalid stored accent falls back to the default", async ({ page }) => {
     DEFAULT_ACTION_RGB,
   );
 });
+
+async function openSettings(page: Page) {
+  if (isPhone(page)) {
+    await page.locator('[aria-label="Account"]').click();
+    await page.locator(testId("account-settings")).click();
+  } else {
+    await page.locator(testId("settings-btn")).click();
+  }
+  await expect(page.locator(testId("settings-dialog"))).toBeVisible();
+}
+
+test.describe("settings dialog", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.reload();
+  });
+
+  test("picking a preset recolors the app and persists", async ({ page }) => {
+    await openSettings(page);
+    await page.locator(testId("accent-coral")).click();
+
+    await expect(page.locator(testId("accent-coral"))).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(await page.evaluate(() => localStorage.getItem("themeAccent"))).toBe(
+      JSON.stringify("#ff7043"),
+    );
+
+    await page.locator(testId("settings-close")).click();
+    await expect(page.locator(testId("settings-dialog"))).toBeHidden();
+    await expect(actionButton(page)).not.toHaveCSS(
+      "background-color",
+      DEFAULT_ACTION_RGB,
+    );
+
+    await page.reload();
+    await openSettings(page);
+    await expect(page.locator(testId("accent-coral"))).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  test("a custom color is applied", async ({ page }) => {
+    await openSettings(page);
+    await page.locator(testId("accent-custom-input")).fill("#ff8800");
+
+    expect(await page.evaluate(() => localStorage.getItem("themeAccent"))).toBe(
+      JSON.stringify("#ff8800"),
+    );
+    await expect(page.locator(testId("accent-reset"))).toBeEnabled();
+    await page.locator(testId("settings-close")).click();
+    await expect(actionButton(page)).not.toHaveCSS(
+      "background-color",
+      DEFAULT_ACTION_RGB,
+    );
+    await expect(page.locator(testId("nav-notes"))).toHaveCSS(
+      isPhone(page) ? "color" : "background-color",
+      isPhone(page) ? "rgb(255, 136, 0)" : /rgba\(255, 136, 0, /,
+    );
+  });
+
+  test("a near-black custom color is lifted to stay readable", async ({
+    page,
+  }) => {
+    await openSettings(page);
+    await page.locator(testId("accent-custom-input")).fill("#000000");
+    await page.locator(testId("settings-close")).click();
+
+    await expect(page.locator(testId("nav-notes"))).not.toHaveCSS(
+      isPhone(page) ? "color" : "background-color",
+      /rgba?\(0, 0, 0[,)]/,
+    );
+  });
+
+  test("reset restores the default and clears the stored key", async ({
+    page,
+  }) => {
+    await openSettings(page);
+    await page.locator(testId("accent-purple")).click();
+    await page.locator(testId("accent-reset")).click();
+
+    await expect(page.locator(testId("accent-default"))).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await expect(page.locator(testId("accent-reset"))).toBeDisabled();
+    expect(await page.evaluate(() => localStorage.getItem("themeAccent"))).toBe(
+      null,
+    );
+
+    await page.locator(testId("settings-close")).click();
+    await expect(actionButton(page)).toHaveCSS(
+      "background-color",
+      DEFAULT_ACTION_RGB,
+    );
+  });
+});
+
+test("the Google sign-in button keeps its color by default and follows the accent", async ({
+  page,
+}) => {
+  const signIn = page.locator(testId("cloud-auth-btn"));
+  // The sidebar footer (and this button) only exists on desktop.
+  test.skip(isPhone(page), "sidebar is desktop-only");
+
+  await page.reload();
+  await expect(signIn).toBeEnabled();
+  await expect(signIn).toHaveCSS("color", "rgb(41, 182, 246)");
+
+  await page.evaluate(() => {
+    localStorage.setItem("themeAccent", JSON.stringify("#ff8800"));
+  });
+  await page.reload();
+  await expect(signIn).toBeEnabled();
+  await expect(signIn).toHaveCSS("color", "rgb(255, 136, 0)");
+});

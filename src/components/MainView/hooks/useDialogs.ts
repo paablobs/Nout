@@ -10,6 +10,7 @@ interface DialogState {
   openRenameFolder: boolean;
   folderToRename: Folder | null;
   openSignOut: boolean;
+  openSettings: boolean;
 }
 
 export type DialogAction =
@@ -22,7 +23,9 @@ export type DialogAction =
   | { type: "openRenameFolder"; folder: Folder }
   | { type: "closeRenameFolder" }
   | { type: "openSignOut" }
-  | { type: "closeSignOut" };
+  | { type: "closeSignOut" }
+  | { type: "openSettings" }
+  | { type: "closeSettings" };
 
 const initialDialogState: DialogState = {
   openCreateFolder: false,
@@ -32,6 +35,7 @@ const initialDialogState: DialogState = {
   openRenameFolder: false,
   folderToRename: null,
   openSignOut: false,
+  openSettings: false,
 };
 
 function dialogReducer(state: DialogState, action: DialogAction): DialogState {
@@ -64,6 +68,10 @@ function dialogReducer(state: DialogState, action: DialogAction): DialogState {
       return { ...state, openSignOut: true };
     case "closeSignOut":
       return { ...state, openSignOut: false };
+    case "openSettings":
+      return { ...state, openSettings: true };
+    case "closeSettings":
+      return { ...state, openSettings: false };
   }
 }
 

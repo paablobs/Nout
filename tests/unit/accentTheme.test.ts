@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createTheme, getContrastRatio } from "@mui/material/styles";
 import {
+  ACCENT_PRESETS,
   BACKGROUND_COLOR,
   DEFAULT_ACCENT,
   DEFAULT_SECONDARY,
@@ -94,6 +95,7 @@ describe("createNoutTheme", () => {
     const theme = createNoutTheme();
     const muiDark = createTheme({ palette: { mode: "dark" } });
     expect(theme.palette.primary).toEqual(muiDark.palette.primary);
+    expect(theme.palette.info).toEqual(muiDark.palette.info);
     expect(theme.palette.secondary.main).toBe(DEFAULT_SECONDARY);
   });
 
@@ -103,7 +105,27 @@ describe("createNoutTheme", () => {
     expect(theme.palette.secondary.main).not.toBe(DEFAULT_SECONDARY);
   });
 
+  it("makes info follow a custom accent", () => {
+    expect(createNoutTheme("#ff8800").palette.info.main).toBe("#ff8800");
+  });
+
   it("leaves semantic colors untouched", () => {
     expect(createNoutTheme("#ff8800").palette.error.main).toBe("#942020");
+  });
+});
+
+describe("ACCENT_PRESETS", () => {
+  it("are normalized, unique and need no contrast lift", () => {
+    const values = ACCENT_PRESETS.map((preset) => preset.value);
+    expect(new Set(values).size).toBe(values.length);
+    for (const value of values) {
+      expect(normalizeAccent(value)).toBe(value);
+      expect(derivePalette(value)?.primary).toBe(value);
+    }
+  });
+
+  it("have unique names", () => {
+    const names = ACCENT_PRESETS.map((preset) => preset.name);
+    expect(new Set(names).size).toBe(names.length);
   });
 });

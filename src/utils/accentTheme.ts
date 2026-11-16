@@ -9,6 +9,24 @@ export const DEFAULT_ACCENT = "";
 export const BACKGROUND_COLOR = "#0a0908";
 export const DEFAULT_SECONDARY = "#2e442e";
 
+export interface AccentPreset {
+  name: string;
+  value: string;
+}
+
+// Curated picks that already read well on the dark background, so choosing a
+// preset never relies on the contrast clamp.
+export const ACCENT_PRESETS: readonly AccentPreset[] = [
+  { name: "Coral", value: "#ff7043" },
+  { name: "Amber", value: "#ffb300" },
+  { name: "Lime", value: "#aed581" },
+  { name: "Teal", value: "#4db6ac" },
+  { name: "Cyan", value: "#4dd0e1" },
+  { name: "Blue", value: "#64b5f6" },
+  { name: "Purple", value: "#ba68c8" },
+  { name: "Pink", value: "#f06292" },
+];
+
 const MIN_PRIMARY_CONTRAST = 3;
 const SECONDARY_LIGHTNESS = 0.28;
 const SECONDARY_MAX_SATURATION = 0.45;
