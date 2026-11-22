@@ -75,6 +75,87 @@ interface Note {
 
 There is no `category` field. Legacy `category` values are stripped on write and ignored on read (rules still tolerate the key for old documents).
 
+### Product behavior worth knowing
+
+- Notes carry `createdAt`/`updatedAt`/`trashedAt` timestamps; lists sort by most recent edit, trash sorts by trashed date.
+- Deleting a folder trashes its notes. Hidden notes are excluded from the All-notes list but stay visible inside their folder.
+- Search is a plain-text match over the HTML content, within Notes, Favorites and Folders views. Note previews are sanitized text extracted from the HTML.
+- Trash restores notes and purges them automatically after 30 days.
+- Accent themes: a preset or any custom color, chosen in Settings (sidebar footer on desktop, account menu on phone). Dark picks are lightened automatically so they stay readable, and the default look is unchanged until an accent is picked. The Google sign-in button follows the accent.
+- Errors surface in a snackbar instead of dying in the console. The app ships a generated OG image and SEO meta for `nout.it`.
+
+---
+
+## 0.2. Commands
+
+```bash
+pnpm install    # Node 24 (.nvmrc); Java 21+ is also needed for the Firebase emulators
+pnpm dev        # Vite dev server
+pnpm build      # production build; `prebuild` regenerates the OG image first
+pnpm preview    # preview the production build
+```
+
+Other scripts: `pnpm lint` (oxlint), `pnpm lint:fix`, `pnpm format` (oxfmt), `pnpm format:check`, `pnpm generate:og` (regenerates `public/og-image.png`, runs automatically before build).
+
+## 0.3. Cloud mode (Firebase, optional)
+
+The Firebase web config is bundled with the app, so cloud mode works out of the box after cloning. Signing in happens through `Sign in with Google` in the sidebar (account menu on phone).
+
+- Without a cloud connection, data lives in localStorage (offline-first behavior).
+- With a cloud connection, notes, folders, scratchpad and accent color live in Firestore and update live across devices through `onSnapshot` listeners.
+- On first sign-in, notes and folders that only exist locally are copied to the cloud via `planMigration`. When the same note exists on both sides, the most recently edited version wins.
+- The accent color is applied from localStorage immediately and saved to `users/{uid}/meta/theme`; a pick made on another device is written back to the local copy. No cloud doc is created until an accent is picked.
+- Cloud note edits are debounced (~400ms) and batched; pending saves flush on sign-out or unmount.
+- Firestore offline persistence uses the IndexedDB multi-tab cache, so signed-in users keep working offline and changes sync when back online.
+- Auth persistence uses browser local persistence so sessions survive a browser restart.
+- If a popup sign-in is blocked (common in mobile in-app browsers), the app falls back to redirect-based sign-in.
+- Signing out asks for confirmation; an offline indicator chip appears when the connection drops.
+
+### Security rules
+
+- `firestore.rules` restricts reads and writes to each authenticated user's namespace: `users/{uid}/...`.
+- Notes require `id`, `text` (max 50k chars), `isFav`, `isTrash`, `isHidden`, with optional `createdAt`/`updatedAt` (`updatedAt >= createdAt`), `folderId` (max 128 chars) and `trashedAt`. Folders require `id` plus a non-empty `name` (max 80 chars). The scratchpad is a single `value` string (max 200k chars). The theme doc is a single `value` that is `""` (default) or a lowercase `#rrggbb`.
+- Deploy `firestore.rules` before shipping an app version that syncs the accent, otherwise signed-in accent saves are rejected.
+- Deploy rules with:
+
+```bash
+pnpm exec firebase-tools@latest deploy --only firestore:rules
+```
+
+## 0.4. Responsive layout
+
+Breakpoints live in `src/theme.ts`: phone below 768px, tablet 768–1023px, desktop at 1024px and up (`sm`/`md`).
+
+- Phone: drill-down navigation (list → note), bottom tab bar (`BottomNav`), folders root screen (`FolderList`), compact single-row cards (`CompactCard`), `FabNewNote`, full-screen dialogs, and browser-history integration so the back button walks back through notes, folders and scratchpad.
+- Desktop/tablet: persistent sidebar (`Sidebar`), two-pane list plus editor.
+- `MainView` derives which pane to show from view state plus `useMediaQuery`; view state itself lives in the `useViewState` reducer.
+
+## 0.5. Test coverage
+
+**Unit (Vitest, `pnpm test:unit`)** — pure data-layer logic: note schema normalization, sign-in migration planning, trash purge selection, note transforms, search and sorting, relative-time formatting, previews, accent normalization, contrast-safe palette derivation and the cloud accent format.
+
+**Firebase security and integration (emulator, `pnpm test:firebase`)** — runs against the Firebase Auth + Firestore emulators (Java 21+). Covers:
+
+- Auth emulator anonymous sign-up flow
+- Rules deny unauthenticated access, allow owner CRUD for notes/folders/scratchpad, and deny cross-user access
+- Rules deny invalid schema writes (wrong types, extra fields, timestamp inconsistencies)
+- Rules accept only `""` or a lowercase `#rrggbb` for the theme doc, and deny malformed colors, extra fields and cross-user access
+- Cloud repositories round-trip notes and folders against the emulator
+- Repository writes converge through `onSnapshot` listeners
+
+**E2E (Playwright, `pnpm test:e2e`, or `pnpm test:e2e:ui` for the interactive UI)** — runs against the Vite dev server, started automatically by the `webServer` config, in three projects: Desktop Chromium, Pixel 7, and iPad (`isMobile: false`). Tests run offline-only with seeded localStorage data, so no Firebase emulator is required. Covers:
+
+- Navigation between views (Notes, Favorites, Trash, Scratchpad, Folders) and empty states for every view
+- Creating, editing, favoriting, trashing, restoring and moving notes; emptying the trash with confirmation
+- Hiding notes from the Notes view and finding them inside their folder
+- Creating, renaming and deleting folders (delete trashes folder notes)
+- Scratchpad editing and localStorage persistence
+- Search filtering, empty-result states, and hidden-note search semantics; Favorites filtering
+- Accent themes: default look, stored and invalid accents, picking a preset or custom color in Settings (desktop and phone), dark colors lifted for contrast, reset, and the sign-in button following the accent
+- Phone drill-down: list to editor navigation, back-button history, bottom nav, folders root, compact cards, FAB visibility
+
+`pnpm test` runs the full suite of unit + firebase tests. CI (`.github/workflows/ci.yml`, required on PRs) runs `pnpm lint`, `pnpm format:check`, `pnpm build`, `pnpm test:unit`, `pnpm test:firebase`, then installs Chromium/WebKit and runs `pnpm test:e2e`.
+
 ---
 
 ## 1. Core Principle: React is synchronization, not execution
