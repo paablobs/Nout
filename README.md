@@ -20,7 +20,3 @@ Nout is a compact, offline-first note-taking web app. It combines a polished UI 
 - Accent color themes: pick a preset or any custom color and the whole UI follows it
 - Responsive layout: sidebar on desktop, drill-down navigation with a bottom tab bar on phone
 - Dark theme
-
-## Working on the code
-
-Setup, commands, architecture, cloud sync, security rules and tests are documented in [AGENTS.md](AGENTS.md).
